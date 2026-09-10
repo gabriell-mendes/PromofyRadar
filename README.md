@@ -1,4 +1,4 @@
-# Grupo de Ofertas
+# Automação para scraping de Ofertas
 
 Ferramenta pessoal para encontrar automaticamente boas ofertas de produtos e
 divulgá-las em grupos de ofertas (Telegram, Whatsapp,etc), monetizando via
