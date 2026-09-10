@@ -33,7 +33,7 @@ Veja o status abaixo e o roadmap detalhado em
 
 ## Status atual
 
-🚧 Projeto em setup inicial. Ainda não há coleta funcionando.
+ Projeto em setup inicial. Ainda não há coleta funcionando.
 
 ## Como rodar
 
