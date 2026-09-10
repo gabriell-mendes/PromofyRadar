@@ -2,7 +2,7 @@
 
 ## Estado atual
 
-Projeto em setup. Ainda não há código de coleta — este documento descreve a
+Projeto em setup. Ainda não há código de coleta este documento descreve a
 arquitetura **alvo** para o MVP, que vai sendo implementada aos poucos.
 
 ## Fluxo de dados (MVP)
