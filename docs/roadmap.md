@@ -13,7 +13,7 @@ Objetivo: provar o fluxo mínimo ponta a ponta com dados reais, para uma
 - [ ] Coletar produtos de uma consulta simples (ex: "notebook")
 - [ ] Extrair preço atual + informações básicas (título, preço, link, loja)
 - [ ] Normalizar os dados coletados em uma estrutura única (`Product`)
-- [ ] Armazenar os produtos coletados (começa simples — pode nem ser Postgres ainda)
+- [ ] Armazenar os produtos coletados (começa simples, pode nem ser Postgres ainda)
 - [ ] Análise básica: alguma regra simples (não precisa ser o Deal Score completo)
 - [ ] Deal Score inicial (versão simplificada, com poucos fatores)
 - [ ] Filtrar as melhores ofertas encontradas
