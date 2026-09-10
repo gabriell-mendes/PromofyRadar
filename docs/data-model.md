@@ -1,6 +1,6 @@
 # Modelo de dados
 
-Ainda não implementado — este documento existe para registrar o desenho
+Ainda não implementado este documento existe para registrar o desenho
 conceitual do MVP. Vai ficar mais detalhado (e provavelmente vai mudar)
 conforme o código avança.
 
@@ -20,8 +20,8 @@ O objeto normalizado que sai da etapa de normalização, independente da fonte.
 
 ## Fora do MVP (registrado aqui para não esquecer, não para implementar já)
 
-- `Offer` — separaria "produto" de "oferta pontual" quando tivermos mais de
+- `Offer` separaria "produto" de "oferta pontual" quando tivermos mais de
   uma fonte por produto
-- `PriceHistory` — série temporal de preços por produto
-- `Store` — confiabilidade, frete, cupons
-- `DealScore` — score calculado, com breakdown dos fatores que geraram a nota
+- `PriceHistory` série temporal de preços por produto
+- `Store` confiabilidade, frete, cupons
+- `DealScore` score calculado, com breakdown dos fatores que geraram a nota
