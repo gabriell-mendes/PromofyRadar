@@ -41,9 +41,9 @@ formato diferente. Se misturarmos "buscar dados" com "decidir se é uma boa
 oferta", qualquer mudança na fonte quebra a lógica de negócio junto.
 
 Separando em camadas:
-- **collector** conhece só a fonte (API/HTML) — não sabe o que é um "bom
+- **collector** conhece só a fonte (API/HTML) não sabe o que é um "bom
   desconto".
-- **normalização** conhece só a conversão fonte → `Product` — não faz
+- **normalização** conhece só a conversão fonte → `Product` não faz
   requisições HTTP nem calcula score.
 - **análise/Deal Score** conhece só regras de negócio sobre um `Product` já
   normalizado — não sabe de onde ele veio.
@@ -56,7 +56,7 @@ segunda fonte no futuro sem tocar na lógica de score.
 | Decisão | Motivo |
 |---|---|
 | Fonte inicial: API oficial, não scraping de HTML | Mais estável, sem risco de bloqueio, sem questões de ToS |
-| Sem banco de dados "de verdade" ainda no primeiro passo | Adiar Postgres até termos algo coletando de fato — evita configurar infraestrutura antes de validar a coleta |
+| Sem banco de dados "de verdade" ainda no primeiro passo | Adiar Postgres até termos algo coletando de fato evita configurar infraestrutura antes de validar a coleta |
 | Deal Score começa simples (poucos fatores) | Um score de 0-100 complexo sem dados históricos reais seria arbitrário |
 | Sem uso de LLM na decisão de "boa oferta" | Decisão quantitativa deve vir de regras sobre dados, não de opinião de IA |
 
