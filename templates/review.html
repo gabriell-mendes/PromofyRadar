@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Grupo de Ofertas — Revisão Manual</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header>
+        <h1>Revisão manual</h1>
+        <p class="subtitle">
+            {{ items|length }} oferta(s) para revisar — dados fictícios (mock), ainda sem collector real.
+        </p>
+    </header>
+
+    <main class="grid">
+        {% for item in items %}
+        <article class="card">
+            <div class="card-header">
+                <span class="score {{ item.score_class }}">{{ item.score }}/100</span>
+                <span class="store">{{ item.product.store }}</span>
+            </div>
+
+            <h2 class="title">{{ item.product.title }}</h2>
+            <p class="price">{{ item.price_formatted }}</p>
+            <p class="reason">{{ item.reason }}</p>
+
+            <a class="link" href="{{ item.product.url }}" target="_blank" rel="noopener">
+                Ver produto na fonte ↗
+            </a>
+
+            <details>
+                <summary>Mensagem para publicação</summary>
+                <textarea readonly rows="7">{{ item.message }}</textarea>
+            </details>
+        </article>
+        {% endfor %}
+    </main>
+</body>
+</html>

@@ -35,11 +35,26 @@ Nem tudo isso existe ainda — veja o status abaixo e o roadmap detalhado em
 
 ## Status atual
 
-🚧 Projeto em setup inicial. Ainda não há coleta funcionando.
+🚧 Ainda não há coleta funcionando. Existe uma dashboard de revisão manual
+(`app/`) rodando com dados fictícios (`app/mock_data.py`), só para validar a
+tela da etapa "revisão manual" antes de plugar o collector real.
 
 ## Como rodar
 
-_(será preenchido conforme o MVP for tomando forma)_
+### Dashboard de revisão manual
+
+```
+pip install -r requirements.txt
+uvicorn app.main:app --reload
+```
+
+Abra http://127.0.0.1:8000 — vai aparecer uma lista de ofertas fictícias
+com score, motivo e a mensagem pronta para copiar/colar no Telegram.
+
+Isso ainda **não é** o dashboard/frontend completo mencionado como fora de
+escopo em `docs/roadmap.md` — é só a tela mínima para a etapa de revisão
+manual que já fazia parte do MVP, sem React/build tooling, fácil de trocar
+depois.
 
 ## Documentação
 
