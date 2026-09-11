@@ -20,6 +20,9 @@ Objetivo: provar o fluxo mínimo ponta a ponta com dados reais, para uma
 - [ ] Gerar uma mensagem de texto formatada para a oferta
 - [ ] Revisão manual (eu decido se publico ou não)
 
+## Observação Importante  
+Começar com Mercado Livre como primeira fonte, mas sem assumir ainda qual método de coleta será usado. Primeiro vale verificar qual acesso/API/fonte é oficialmente disponível para o tipo de dado precisa; isso evita construir um scraper e depois descobrir que a abordagem não é adequada.
+
 ## Depois do MVP
 
 - Segunda fonte de dados
