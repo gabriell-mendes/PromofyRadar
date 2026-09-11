@@ -43,3 +43,4 @@ Objetivo: provar o fluxo mínimo ponta a ponta com dados reais, para uma
 - Filas/mensageria, microserviços
 - Qualquer técnica para contornar CAPTCHA, anti-bot, autenticação ou
   restrições de acesso das fontes
+- CI/CD com GitHub Actions (workflows de lint/test — útil só quando houver testes e deploy automatizado)
