@@ -71,9 +71,21 @@ h1 {
 }
 
 .price {
+    margin: 0;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+}
+
+.price-old {
+    font-size: 0.85rem;
+    color: #6b7280;
+    text-decoration: line-through;
+}
+
+.price-new {
     font-size: 1.3rem;
     font-weight: 700;
-    margin: 0;
 }
 
 .reason {

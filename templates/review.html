@@ -9,7 +9,7 @@
     <header>
         <h1>Revisão manual</h1>
         <p class="subtitle">
-            {{ items|length }} oferta(s) para revisar — dados fictícios (mock), ainda sem collector real.
+            {{ items|length }} oferta(s) para revisar dados fictícios (mock), ainda sem collector real.
         </p>
     </header>
 
@@ -22,7 +22,10 @@
             </div>
 
             <h2 class="title">{{ item.product.title }}</h2>
-            <p class="price">{{ item.price_formatted }}</p>
+            <p class="price">
+                <span class="price-old">{{ item.price_original }}</span>
+                <span class="price-new">{{ item.price_current }}</span>
+            </p>
             <p class="reason">{{ item.reason }}</p>
 
             <a class="link" href="{{ item.product.url }}" target="_blank" rel="noopener">

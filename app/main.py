@@ -45,12 +45,18 @@ def review(request: Request):
             "score": item.score,
             "reason": item.reason,
             "score_class": score_class(item.score),
-            "price_formatted": format_price(item.product.price),
+            "price_current": format_price(item.product.price),
+            "price_original": format_price(item.original_price),
             "message": generate_message(item),
         }
         for item in MOCK_REVIEW_ITEMS
     ]
+    # A partir do Starlette 1.x, "request" é o primeiro argumento
+    # posicional do TemplateResponse — não fica mais dentro do dict de
+    # contexto (a assinatura antiga, TemplateResponse(nome, {"request": ...}),
+    # foi removida).
     return templates.TemplateResponse(
+        request,
         "review.html",
-        {"request": request, "items": items},
+        {"items": items},
     )

@@ -17,8 +17,15 @@ from .models import Product
 @dataclass
 class ReviewItem:
     product: Product
-    score: int      # 0-100, versão simplificada do Deal Score (fictício aqui)
-    reason: str       # explicação curta e legível do motivo do score
+    score: int              # 0-100, versão simplificada do Deal Score (fictício aqui)
+    reason: str              # explicação curta e legível do motivo do score
+    original_price: Decimal   # preço de referência ("de"), pra comparar com product.price ("por")
+
+    # score e reason ficam só na dashboard (uso interno) — não entram na
+    # mensagem de publicação. original_price entra na mensagem, como
+    # comparação "de X por Y", mas sem citar de onde veio o número (ainda é
+    # fictício; quando existir histórico de preços real, isso vira o menor
+    # preço recente ou o preço médio, não um valor arbitrário).
 
 
 MOCK_REVIEW_ITEMS = [
@@ -34,6 +41,7 @@ MOCK_REVIEW_ITEMS = [
         ),
         score=82,
         reason="12% abaixo do preço médio dos últimos 30 dias (dado fictício)",
+        original_price=Decimal("2699.00"),
     ),
     ReviewItem(
         product=Product(
@@ -47,6 +55,7 @@ MOCK_REVIEW_ITEMS = [
         ),
         score=58,
         reason="Preço igual à média recente — desconto anunciado não é real (dado fictício)",
+        original_price=Decimal("354.90"),
     ),
     ReviewItem(
         product=Product(
@@ -60,6 +69,7 @@ MOCK_REVIEW_ITEMS = [
         ),
         score=91,
         reason="Menor preço dos últimos 90 dias (dado fictício)",
+        original_price=Decimal("1499.00"),
     ),
     ReviewItem(
         product=Product(
@@ -73,5 +83,8 @@ MOCK_REVIEW_ITEMS = [
         ),
         score=39,
         reason="Loja sem histórico de confiabilidade + preço acima da média (dado fictício)",
+        # Preço ATUAL maior que o "de" — mostra por que o score é baixo:
+        # o preço subiu em vez de baixar, mesmo que a loja anuncie desconto.
+        original_price=Decimal("1400.00"),
     ),
 ]
