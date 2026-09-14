@@ -108,6 +108,14 @@ h1 {
     font-size: 0.8rem;
 }
 
+.thumb {
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: contain;
+    background: #0f1115;
+    border-radius: 6px;
+}
+
 .title {
     font-size: 1rem;
     margin: 0;

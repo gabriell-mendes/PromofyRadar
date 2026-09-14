@@ -9,7 +9,7 @@
     <header>
         <h1>Revisão manual</h1>
         <p class="subtitle">
-            {{ items|length }} oferta(s) para "{{ query }}", buscadas agora no Mercado Livre.
+            {{ items|length }} oferta(s) para "{{ query }}", buscadas agora via {{ fonte }}.
         </p>
         <form method="get" class="search">
             <input type="text" name="q" value="{{ query }}" placeholder="ex: notebook, ssd nvme, monitor 144hz">
@@ -30,6 +30,10 @@
                 <span class="score {{ item.score_class }}">{{ item.score }}/100</span>
                 <span class="store">{{ item.product.store }}</span>
             </div>
+
+            {% if item.product.image_url %}
+            <img class="thumb" src="{{ item.product.image_url }}" alt="" loading="lazy">
+            {% endif %}
 
             <h2 class="title">{{ item.product.title }}</h2>
             <p class="price">
