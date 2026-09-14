@@ -9,9 +9,19 @@
     <header>
         <h1>Revisão manual</h1>
         <p class="subtitle">
-            {{ items|length }} oferta(s) para revisar dados fictícios (mock), ainda sem collector real.
+            {{ items|length }} oferta(s) para "{{ query }}", buscadas agora no Mercado Livre.
         </p>
+        <form method="get" class="search">
+            <input type="text" name="q" value="{{ query }}" placeholder="ex: notebook, ssd nvme, monitor 144hz">
+            <button type="submit">Buscar</button>
+        </form>
     </header>
+
+    {% if erro %}
+    <p class="erro">{{ erro }}</p>
+    {% elif items|length == 0 %}
+    <p class="vazio">Nenhum resultado para "{{ query }}".</p>
+    {% endif %}
 
     <main class="grid">
         {% for item in items %}

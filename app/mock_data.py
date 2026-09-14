@@ -1,31 +1,15 @@
-"""Dados fictícios para desenvolver e testar a dashboard de revisão
-antes de existir um collector real.
+"""Dados fictícios, mantidos como referência e fallback manual (por exemplo
+pra testar a dashboard sem depender da API do Mercado Livre estar no ar).
 
-ReviewItem NÃO é um modelo de domínio — é só o que a tela de revisão
-precisa: um Product + o resultado (fictício, por enquanto) da etapa de
-análise/Deal Score. Quando o Deal Score real existir, ele vai produzir
-objetos assim (ou parecidos) para alimentar essa mesma tela.
+Não é mais o caminho usado por padrão: app/main.py agora busca dados reais
+via app/collector.py e app/scoring.py. ReviewItem mora em app/models.py,
+porque é usado tanto por este arquivo quanto pelo caminho real.
 """
 
-from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 
-from .models import Product
-
-
-@dataclass
-class ReviewItem:
-    product: Product
-    score: int              # 0-100, versão simplificada do Deal Score (fictício aqui)
-    reason: str              # explicação curta e legível do motivo do score
-    original_price: Decimal   # preço de referência ("de"), pra comparar com product.price ("por")
-
-    # score e reason ficam só na dashboard (uso interno) — não entram na
-    # mensagem de publicação. original_price entra na mensagem, como
-    # comparação "de X por Y", mas sem citar de onde veio o número (ainda é
-    # fictício; quando existir histórico de preços real, isso vira o menor
-    # preço recente ou o preço médio, não um valor arbitrário).
+from .models import Product, ReviewItem
 
 
 MOCK_REVIEW_ITEMS = [

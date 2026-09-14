@@ -1,35 +1,37 @@
 """Dashboard de revisão manual.
 
-Serve UMA única página: a lista de ofertas já coletadas e pontuadas,
-esperando que você (Gabriel) decida quais publicar. É a interface para a
-etapa "revisão manual" que já está no MVP (docs/roadmap.md).
-
-Hoje os dados vêm de app/mock_data.py (fictícios). Quando o collector e o
-Deal Score reais existirem, a única coisa que muda aqui é de onde a lista
-`items` vem — o resto (rotas, template) continua igual.
+Serve UMA única página: recebe uma consulta (parâmetro "q" na URL, com um
+valor padrão), busca produtos reais na API do Mercado Livre, calcula um
+Deal Score simplificado e mostra a lista pronta pra você decidir o que
+publicar. É a interface para a etapa "revisão manual" do MVP
+(docs/roadmap.md), agora ligada nas etapas anteriores do pipeline
+(consulta -> collector -> normalização -> análise/Deal Score).
 """
 
 from pathlib import Path
+
+import requests
 
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+from .collector import buscar_produtos_raw, extrair_preco_original, normalizar
 from .message import format_price, generate_message
-from .mock_data import MOCK_REVIEW_ITEMS
+from .models import ReviewItem
+from .scoring import calcular_deal_score, gerar_motivo
 
-# BASE_DIR aponta para a raiz do projeto, não para app/, para que
-# "uvicorn app.main:app" funcione não importa de qual pasta você rode o
-# comando.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 app = FastAPI(title="Grupo de Ofertas — Revisão Manual")
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
+QUERY_PADRAO = "notebook"
+
 
 def score_class(score: int) -> str:
-    """Classe CSS pra colorir o score — regra simples, sem mágica."""
+    """Classe CSS pra colorir o score, regra simples, sem mágica."""
     if score >= 70:
         return "score-good"
     if score >= 50:
@@ -37,8 +39,45 @@ def score_class(score: int) -> str:
     return "score-bad"
 
 
+def montar_review_items(query: str) -> list[ReviewItem]:
+    """Pipeline completo de hoje: busca -> normaliza -> pontua.
+
+    Fica junto ao invés de em módulo próprio porque hoje é só isso: cada
+    etapa (collector, scoring) continua isolada e testável sozinha, isso
+    aqui só encadeia as chamadas.
+    """
+    crus = buscar_produtos_raw(query)
+    produtos = [normalizar(item) for item in crus]
+    precos = [p.price for p in produtos]
+
+    itens = []
+    for item_cru, produto in zip(crus, produtos):
+        score = calcular_deal_score(produto, precos)
+        motivo = gerar_motivo(produto, precos)
+        original = extrair_preco_original(item_cru) or produto.price
+        itens.append(
+            ReviewItem(
+                product=produto,
+                score=score,
+                reason=motivo,
+                original_price=original,
+            )
+        )
+    return itens
+
+
 @app.get("/")
-def review(request: Request):
+def review(request: Request, q: str = QUERY_PADRAO):
+    erro = None
+    review_items: list[ReviewItem] = []
+    try:
+        review_items = montar_review_items(q)
+    except requests.RequestException as exc:
+        # Falha de rede/API não deveria derrubar a página inteira, só
+        # mostrar o que aconteceu. Isso é robustez básica de quem chama uma
+        # fonte externa, não overengineering.
+        erro = f"Não deu pra buscar produtos agora: {exc}"
+
     items = [
         {
             "product": item.product,
@@ -49,14 +88,11 @@ def review(request: Request):
             "price_original": format_price(item.original_price),
             "message": generate_message(item),
         }
-        for item in MOCK_REVIEW_ITEMS
+        for item in review_items
     ]
-    # A partir do Starlette 1.x, "request" é o primeiro argumento
-    # posicional do TemplateResponse — não fica mais dentro do dict de
-    # contexto (a assinatura antiga, TemplateResponse(nome, {"request": ...}),
-    # foi removida).
+
     return templates.TemplateResponse(
         request,
         "review.html",
-        {"items": items},
+        {"items": items, "query": q, "erro": erro},
     )
