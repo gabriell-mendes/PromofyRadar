@@ -87,6 +87,33 @@ duplicado), a fonte Shopee (resposta válida/vazia/erro HTTP/timeout/rate
 limit/dados incompletos), a fonte Mercado Livre (permanece desativada, sem
 chamada de rede), o Deal Score, e a geração de mensagem.
 
+### Teste de uma URL individual do Mercado Livre
+
+O Mercado Livre continua fora da busca de ofertas do MVP. Para inspecionar uma
+URL pública individual durante o desenvolvimento, existe um coletor isolado.
+Ele usa Chromium padrão, sem mascaramento de automação ou tentativa de burlar
+bloqueios. Se identificar uma tela de verificação, retorna `status: "blocked"`
+e encerra.
+
+Após instalar as dependências, instale o navegador uma vez:
+
+```
+python -m playwright install chromium
+```
+
+Na raiz do repositório, execute:
+
+```
+python -m app.sources.mercadolivre_page "https://www.mercadolivre.com.br/URL-DO-PRODUTO"
+```
+
+Para salvar o JSON ou abrir a janela do navegador:
+
+```
+python -m app.sources.mercadolivre_page "https://www.mercadolivre.com.br/URL-DO-PRODUTO" --output resultado.json
+python -m app.sources.mercadolivre_page "https://www.mercadolivre.com.br/URL-DO-PRODUTO" --headed --verbose
+```
+
 ## Documentação
 
 - [`docs/decisao-fonte-de-dados.md`](docs/decisao-fonte-de-dados.md) —

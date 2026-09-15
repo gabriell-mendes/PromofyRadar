@@ -3,3 +3,4 @@ fastapi
 uvicorn[standard]
 jinja2
 python-dotenv
+playwright>=1.49,<2
