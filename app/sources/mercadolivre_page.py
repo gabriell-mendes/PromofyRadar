@@ -53,11 +53,14 @@ class MercadoLivrePage:
 
     def to_product(self) -> Product:
         """Adaptador opcional para o Product usado pelo pipeline do projeto."""
-        if self.status != "ok" or not all((self.item_id, self.title, self.price, self.final_url)):
+        if self.status != "ok":
+            raise ValueError("A coleta não terminou com status 'ok'.")
+        item_id, title, price, final_url = self.item_id, self.title, self.price, self.final_url
+        if not (item_id and title and price and final_url):
             raise ValueError("A coleta não contém os campos necessários para criar Product.")
         return Product(
-            source="mercadolivre", source_id=self.item_id, title=self.title,
-            price=self.price, original_price=self.previous_price, url=self.final_url,
+            source="mercadolivre", source_id=item_id, title=title,
+            price=price, original_price=self.previous_price, url=final_url,
             store=self.seller or "Loja não identificada", image_url=(self.image_urls or [None])[0],
             collected_at=datetime.now(),
         )
