@@ -22,14 +22,30 @@ except ImportError:
 
 from .sources.base import OfferSource
 from .sources.mercadolivre import MercadoLivreSource
+from .sources.mercadolivre_scraper import MercadoLivreScraperSource
 from .sources.shopee import ShopeeSource
 
 FONTES: dict[str, type[OfferSource]] = {
     "shopee": ShopeeSource,
-    "mercadolivre": MercadoLivreSource,
+    "mercadolivre": MercadoLivreScraperSource,
+    # API oficial, mantida só como referência histórica: hoje ela levanta
+    # SourceUnavailableError de propósito, porque api.mercadolibre.com
+    # bloqueia qualquer chamada de terceiro (ver docs/decisao-fonte-de-dados.md).
+    # Só volta a ser útil se um dia existir certificação de parceiro.
+    "mercadolivre_api": MercadoLivreSource,
 }
 
-FONTE_PADRAO = "shopee"
+# Shopee exige SHOPEE_APP_ID/SHOPEE_APP_SECRET (Gabriel ainda não tem —
+# depende de aprovação como afiliado). Mercado Livre por scraping funciona
+# sem nenhuma credencial, então é o padrão até a Shopee ter credenciais
+# reais configuradas (ver docs/decisao-fonte-de-dados.md).
+FONTE_PADRAO = "mercadolivre"
+
+# Desconto mínimo (%) pra um produto aparecer na revisão manual — ver
+# app/filtro.py. Pode mudar sem tocar em código: variável de ambiente
+# DESCONTO_MINIMO_PERCENTUAL no .env, ou por busca via query string
+# ?desconto_min=50 na dashboard (app/main.py).
+DESCONTO_MINIMO_PADRAO = float(os.environ.get("DESCONTO_MINIMO_PERCENTUAL", "40"))
 
 
 def get_source(nome: str | None = None) -> OfferSource:

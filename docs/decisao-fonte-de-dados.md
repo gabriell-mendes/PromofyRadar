@@ -1,6 +1,9 @@
 # Decisão: fonte de dados do MVP
 
-Data: 2026-09-14
+Data: 2026-09-14 (ver seção F para o pivô posterior, de 2026-09-15/16,
+que é a decisão que vale hoje — as seções abaixo continuam sendo o
+registro histórico de como se chegou até ali, e a comparação entre Shopee
+e AliExpress nelas continua válida)
 
 ## A. Diagnóstico
 
@@ -172,3 +175,44 @@ teoria.
    busca" e chegar em histórico de preço de verdade.
 6. Avaliar AliExpress como segunda fonte, seguindo o mesmo padrão
    (`app/sources/aliexpress.py` implementando `OfferSource`).
+
+## F. Atualização (2026-09-15/16): pivô para scraping
+
+As seções A-E acima levaram à escolha da Shopee como fonte via API. Na
+prática, o passo 1 da seção E ("Gabriel: cadastrar-se como afiliado
+Shopee...") depende de aprovação externa (~2 semanas segundo relatos), o
+que deixava o MVP inteiro parado esperando um terceiro.
+
+**Decisão (2026-09-15):** em vez de esperar, Gabriel escolheu construir a
+coleta do Mercado Livre via **scraping com Playwright** (simular um
+navegador real lendo a página pública de busca), aceitando conscientemente
+o risco que isso implica: o HTML de um site muda com mais frequência que
+um contrato de API, e scraping de página de busca não tem a mesma garantia
+contratual que uma API oficial teria. Esse risco foi considerado aceitável
+pro estágio atual (validação pessoal, não produto comercial), com uma
+condição mantida desde o início do projeto: nenhuma técnica de evasão
+(sem burlar CAPTCHA, sem mascarar automação, sem IP rotation) — se uma
+página de bloqueio/verificação for detectada, a coleta para e reporta
+erro (ver `app/sources/mercadolivre_scraper.py` e o princípio já registrado
+em `docs/roadmap.md`, seção "Não é prioridade agora").
+
+**Implementação (2026-09-16):** `app/sources/mercadolivre_scraper.py`
+implementa `OfferSource` completo — download (Playwright) → extração
+(BeautifulSoup + dict `SELECTORS`) → normalização (`Product`) — e passou a
+ser a fonte padrão (`FONTE_PADRAO` em `app/config.py`), porque funciona
+sem nenhuma credencial, ao contrário da Shopee.
+
+**O que isso muda, e o que não muda:**
+
+- `MERCADO LIVRE = ROADMAP` (linha da seção C) não vale mais como estava
+  escrito: o Mercado Livre voltou a ser MVP, só que por scraping, não pela
+  API bloqueada (essa continua bloqueada e descartada, sem mudança — ver
+  seção A).
+- A comparação Shopee vs. AliExpress (seção B) continua válida: a Shopee
+  continua implementada e pronta pra ativar assim que houver credencial,
+  e AliExpress continua sendo a candidata natural a próxima fonte.
+- `app/sources/mercadolivre.py` (a versão via API) não foi apagada, só
+  renomeada pra `mercadolivre_api` em `app/config.py` — fica como
+  referência caso a certificação de parceiro do Mercado Livre um dia se
+  torne viável (ver seção "Mercado Livre — quando reavaliar" acima, ainda
+  válida).

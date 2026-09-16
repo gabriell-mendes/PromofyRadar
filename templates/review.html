@@ -9,10 +9,12 @@
     <header>
         <h1>Revisão manual</h1>
         <p class="subtitle">
-            {{ items|length }} oferta(s) para "{{ query }}", buscadas agora via {{ fonte }}.
+            {{ items|length }} oferta(s) com pelo menos {{ desconto_min|int }}% de desconto para
+            "{{ query }}", buscadas agora via {{ fonte }}.
         </p>
         <form method="get" class="search">
             <input type="text" name="q" value="{{ query }}" placeholder="ex: notebook, ssd nvme, monitor 144hz">
+            <input type="number" name="desconto_min" value="{{ desconto_min|int }}" min="0" max="100" step="1" title="Desconto mínimo (%)">
             <button type="submit">Buscar</button>
         </form>
     </header>

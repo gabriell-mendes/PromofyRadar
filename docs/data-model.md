@@ -17,14 +17,20 @@ independente de qual seja.
 | `url` | str | link direto para o produto (não é link de afiliado — ver `docs/decisao-fonte-de-dados.md`) | todas |
 | `store` | str | nome da loja/vendedor | todas |
 | `collected_at` | datetime | quando foi coletado | todas |
-| `original_price` | Decimal \| None | preço "de" anunciado pela fonte/loja, quando existe | Shopee, Mercado Livre |
-| `image_url` | str \| None | imagem do produto, quando a fonte fornece | Shopee, Mercado Livre |
+| `original_price` | Decimal \| None | preço "de" anunciado pela fonte/loja, quando existe | Shopee, Mercado Livre (scraping e API) |
+| `image_url` | str \| None | imagem do produto, quando a fonte fornece | Shopee, Mercado Livre via API (`mercadolivre_api`, hoje desativada) |
 | `sales` | int \| None | volume de vendas reportado pela fonte, usado como sinal leve de confiança no Deal Score | só Shopee |
 
 `original_price`, `image_url` e `sales` são opcionais (`None` quando a
 fonte não fornece) de propósito: nenhum campo foi adicionado só por
 completude — cada um já é lido em algum lugar do pipeline (mensagem de
 publicação, dashboard, ou `app/scoring.py`).
+
+Nota: `app/sources/mercadolivre_scraper.py` (a fonte ativa hoje) ainda não
+extrai `image_url` da página de busca — os cards de produto na dashboard
+aparecem sem miniatura quando a fonte é Mercado Livre. Não é uma limitação
+do modelo, é um campo que o extractor dessa fonte específica ainda não lê
+(ver `SELECTORS` nesse arquivo se quiser adicionar).
 
 ## Fora do MVP (registrado aqui para não esquecer, não para implementar já)
 

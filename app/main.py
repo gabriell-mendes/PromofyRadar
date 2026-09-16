@@ -19,7 +19,8 @@ from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from .config import get_source
+from .config import DESCONTO_MINIMO_PADRAO, get_source
+from .filtro import atende_desconto_minimo
 from .message import format_price, generate_message
 from .models import ReviewItem
 from .scoring import calcular_deal_score, gerar_motivo
@@ -43,19 +44,30 @@ def score_class(score: int) -> str:
     return "score-bad"
 
 
-def montar_review_items(fonte, query: str) -> list[ReviewItem]:
-    """Pipeline completo de hoje: busca (na fonte configurada) -> pontua.
+def montar_review_items(
+    fonte, query: str, desconto_min: float = DESCONTO_MINIMO_PADRAO
+) -> list[ReviewItem]:
+    """Pipeline completo de hoje: busca -> filtra por desconto -> pontua.
 
     A normalização já acontece dentro da fonte (OfferSource.buscar_produtos),
-    então aqui só sobra buscar e pontuar — cada etapa continua isolada e
-    testável sozinha (fonte em app/sources/*, score em app/scoring.py), isso
-    aqui só encadeia as chamadas.
+    então aqui sobra buscar, filtrar e pontuar — cada etapa continua isolada
+    e testável sozinha (fonte em app/sources/*, filtro em app/filtro.py,
+    score em app/scoring.py), isso aqui só encadeia as chamadas.
+
+    A mediana usada pelo Deal Score (`precos`) é calculada com TODOS os
+    produtos que a busca trouxe, antes do filtro de desconto. Se calculasse
+    só com quem já passou no filtro, a mediana ficaria enviesada (um grupo
+    só de produtos "baratos pelo desconto" tem mediana mais baixa que a
+    busca inteira), e o Deal Score deixaria de significar "barato perto do
+    que existe nessa busca" pra significar outra coisa.
     """
     produtos = fonte.buscar_produtos(query)
     precos = [p.price for p in produtos]
 
     itens = []
     for produto in produtos:
+        if not atende_desconto_minimo(produto, desconto_min):
+            continue
         score = calcular_deal_score(produto, precos)
         motivo = gerar_motivo(produto, precos)
         itens.append(ReviewItem(product=produto, score=score, reason=motivo))
@@ -63,14 +75,14 @@ def montar_review_items(fonte, query: str) -> list[ReviewItem]:
 
 
 @app.get("/")
-def review(request: Request, q: str = QUERY_PADRAO):
+def review(request: Request, q: str = QUERY_PADRAO, desconto_min: float = DESCONTO_MINIMO_PADRAO):
     erro = None
     review_items: list[ReviewItem] = []
     nome_fonte = "?"
     try:
         fonte = get_source()
         nome_fonte = fonte.name
-        review_items = montar_review_items(fonte, q)
+        review_items = montar_review_items(fonte, q, desconto_min)
     except (OfferSourceError, ValueError) as exc:
         # Falha da fonte (rede/API/config, incluindo OFFER_SOURCE mal
         # configurado) não deveria derrubar a página inteira, só mostrar o
@@ -97,6 +109,7 @@ def review(request: Request, q: str = QUERY_PADRAO):
         {
             "items": items,
             "query": q,
+            "desconto_min": desconto_min,
             "erro": erro,
             "fonte": nome_fonte,
         },

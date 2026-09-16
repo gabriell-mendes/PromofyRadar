@@ -7,118 +7,179 @@ programas de afiliados.
 ## Objetivo
 
 Não é um SaaS comercial. É uma ferramenta para uso próprio que também serve
-como projeto de aprendizado prático de Python, HTTP/APIs, banco de dados e
-arquitetura de backend.
+como projeto de aprendizado prático de Python, scraping, APIs, banco de
+dados e arquitetura de backend.
 
-O sistema deve identificar ofertas *realmente* boas — com base em histórico
-de preços e dados objetivos — e não apenas em "desconto anunciado pela loja".
+O sistema deve identificar ofertas *realmente* boas — com base em dados
+objetivos coletados — e não apenas em "desconto anunciado pela loja".
 
-## Como funciona (visão geral)
+## Como funciona hoje
 
 ```
-consulta → fonte de ofertas (busca + normalização) → armazenamento
-  → histórico de preços → Deal Score → filtro das melhores ofertas
-  → revisão manual → geração de mensagem → publicação
+consulta (ex: "notebook")
+    │
+    ▼
+fonte de ofertas (busca + normalização)   ← app/sources/*.py, atrás da
+    │                                        interface comum OfferSource
+    ▼
+Deal Score (relativo à mediana da busca)  ← app/scoring.py
+    │
+    ▼
+filtro de desconto mínimo (absoluto)      ← app/filtro.py
+    │
+    ▼
+geração de mensagem                       ← app/message.py
+    │
+    ▼
+revisão manual (dashboard)                ← app/main.py — você decide o
+                                             que publicar; link de afiliado
+                                             é gerado por você, fora do
+                                             código
 ```
 
-Nem tudo isso existe ainda — veja o status abaixo, a decisão de fonte de
-dados em [`docs/decisao-fonte-de-dados.md`](docs/decisao-fonte-de-dados.md)
-e o roadmap detalhado em [`docs/roadmap.md`](docs/roadmap.md).
-
-## Stack
-
-- Python (requests, FastAPI, python-dotenv)
-- PostgreSQL (mais adiante)
-- Telegram Bot API (mais adiante)
-- Docker/Docker Compose (mais adiante)
+Etapas que ainda não existem (ver [`docs/roadmap.md`](docs/roadmap.md)):
+armazenamento/histórico de preços, publicação automática no Telegram,
+métricas de cliques/vendas.
 
 ## Status atual
 
-🚧 Fonte de dados escolhida e implementada (Shopee Affiliate Open API),
-mas ainda sem credenciais reais configuradas — ver
-[`docs/decisao-fonte-de-dados.md`](docs/decisao-fonte-de-dados.md) para os
-próximos passos. Existe uma dashboard de revisão manual (`app/`) que já
-usa o pipeline real (fonte → Deal Score → mensagem); sem credenciais
-configuradas, ela mostra o erro de configuração em vez de dados —
-`app/mock_data.py` continua disponível como referência/fallback visual.
+**Mercado Livre é a fonte padrão**, via scraping real com Playwright
+(`app/sources/mercadolivre_scraper.py`) — funciona sem nenhuma credencial.
+A API oficial do Mercado Livre foi investigada e descartada por bloqueio
+de política do próprio backend deles (não é algo contornável de forma
+legítima); esse código antigo continua no repo, desativado, como
+`mercadolivre_api` (ver [`docs/decisao-fonte-de-dados.md`](docs/decisao-fonte-de-dados.md)).
 
-Mercado Livre foi investigado e descartado como fonte do MVP (bloqueio de
-política do próprio Mercado Livre, não algo contornável de forma legítima)
-— fica registrado como possibilidade futura em
-[`docs/decisao-fonte-de-dados.md`](docs/decisao-fonte-de-dados.md).
+**Shopee Affiliate Open API** (`app/sources/shopee.py`) está implementada
+e testada com mocks, mas **ainda sem credenciais reais** — depende de
+Gabriel virar afiliado aprovado e pedir liberação de API. Sem isso, ela
+levanta erro de configuração em vez de dados.
+
+A dashboard de revisão manual (`app/`) já roda o pipeline real de ponta a
+ponta contra o Mercado Livre: busca → Deal Score → filtro de desconto →
+mensagem pronta pra copiar/colar.
+
+⚠️ Scraping de página de busca é uma decisão consciente, não isenta de
+risco: sites mudam HTML com frequência (quebra seletor) e têm termos de
+uso próprios. Este projeto não usa nenhuma técnica de evasão (sem burlar
+CAPTCHA, sem mascarar automação, sem IP rotation) — se uma página de
+verificação/bloqueio for detectada, a coleta para e reporta erro, não
+tenta contornar.
 
 ## Como rodar
 
-### Configuração
+### 1. Instalar dependências
 
+```powershell
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+python -m playwright install chromium
 ```
+
+O `chromium` do Playwright é obrigatório: é o navegador que a fonte do
+Mercado Livre usa pra simular uma visita real à página de busca.
+
+### 2. Configurar
+
+```powershell
 cp .env.example .env
 ```
 
-Preencha `SHOPEE_APP_ID` e `SHOPEE_APP_SECRET` no `.env` (exige virar
-afiliado Shopee aprovado e pedir liberação de API — ver
-[`docs/decisao-fonte-de-dados.md`](docs/decisao-fonte-de-dados.md)). Sem
-isso, a dashboard sobe normalmente mas mostra erro ao buscar.
+Não precisa preencher nada pra usar o Mercado Livre (fonte padrão). As
+variáveis relevantes, todas opcionais:
 
-### Dashboard de revisão manual
+| Variável | Pra quê | Padrão |
+|---|---|---|
+| `OFFER_SOURCE` | qual fonte usar: `mercadolivre`, `shopee` ou `mercadolivre_api` (histórica, sempre erro) | `mercadolivre` |
+| `DESCONTO_MINIMO_PERCENTUAL` | desconto mínimo (%) pra uma oferta aparecer na revisão | `30` |
+| `MERCADOLIVRE_MIN_INTERVAL_SECONDS` | intervalo mínimo entre buscas no Mercado Livre | `2.0` |
+| `SHOPEE_APP_ID` / `SHOPEE_APP_SECRET` | credenciais da Shopee, só necessárias se `OFFER_SOURCE=shopee` | — |
 
-```
-pip install -r requirements.txt
+### 3. Rodar a dashboard
+
+```powershell
 uvicorn app.main:app --reload
 ```
 
-Abra http://127.0.0.1:8000 — vai aparecer uma lista de ofertas com score,
-motivo e a mensagem pronta para copiar/colar no Telegram.
+Abra http://127.0.0.1:8000 — aparece uma lista de ofertas reais do
+Mercado Livre, com score, motivo do score, e a mensagem pronta.
 
-Isso ainda **não é** o dashboard/frontend completo mencionado como fora de
-escopo em `docs/roadmap.md` — é só a tela mínima para a etapa de revisão
-manual que já fazia parte do MVP, sem React/build tooling, fácil de trocar
-depois.
+Dá pra mudar a busca e o desconto mínimo direto na página (sem editar
+`.env` nem reiniciar), ou pela URL: `http://127.0.0.1:8000/?q=ssd+nvme&desconto_min=50`.
 
-### Testes
+Isso **não é** o dashboard/frontend completo mencionado como fora de
+escopo em `docs/roadmap.md` — é a tela mínima da etapa de revisão manual,
+sem React/build tooling, fácil de trocar depois.
 
+### 4. Validar o scraper com dado real
+
+Sites mudam HTML com frequência — antes de confiar nos resultados (ou
+depois de qualquer suspeita de que algo parou de vir preenchido), rode a
+fonte isolada, fora da dashboard:
+
+```powershell
+python -m app.sources.mercadolivre_scraper "notebook" --headed --verbose
 ```
+
+`--headed` abre o navegador visível, `--verbose` mostra os logs. Mostra o
+primeiro item cru extraído (antes de normalizar) e a lista já normalizada.
+Se um campo vier `None`, é sinal de que o seletor CSS correspondente
+mudou — ele fica centralizado em `SELECTORS`, no topo do arquivo.
+
+### 5. Testes
+
+```powershell
 pip install -r requirements-dev.txt
 pytest
 ```
 
-Cobrem: comportamento comum a qualquer fonte (descarte de item inválido/
-duplicado), a fonte Shopee (resposta válida/vazia/erro HTTP/timeout/rate
-limit/dados incompletos), a fonte Mercado Livre (permanece desativada, sem
+Cobrem hoje: comportamento comum a qualquer fonte (`OfferSource`,
+descarte de item inválido/duplicado), a fonte Shopee (resposta válida/
+vazia/erro HTTP/timeout/rate limit/dados incompletos), a fonte Mercado
+Livre antiga via API (`mercadolivre_api`, permanece desativada, sem
 chamada de rede), o Deal Score, e a geração de mensagem.
 
-### Teste de uma URL individual do Mercado Livre
+**Gap conhecido, ainda não preenchido:** não existe teste automatizado
+pra `app/sources/mercadolivre_scraper.py` (scraping real, mais difícil de
+testar sem mockar Playwright/HTML) nem pra `app/filtro.py` (mais simples
+de cobrir — é só matemática sobre `Product`).
 
-O Mercado Livre continua fora da busca de ofertas do MVP. Para inspecionar uma
-URL pública individual durante o desenvolvimento, existe um coletor isolado.
-Ele usa Chromium padrão, sem mascaramento de automação ou tentativa de burlar
-bloqueios. Se identificar uma tela de verificação, retorna `status: "blocked"`
-e encerra.
-
-Após instalar as dependências, instale o navegador uma vez:
+## Estrutura do projeto
 
 ```
-python -m playwright install chromium
+app/
+  models.py               Product e ReviewItem — modelo de dados comum
+  config.py                get_source(): escolhe a fonte por OFFER_SOURCE
+  scoring.py                Deal Score (relativo à mediana da própria busca)
+  filtro.py                 filtro de desconto mínimo (absoluto, vs. preço "de")
+  message.py                monta o texto pronto pra publicação
+  main.py                    dashboard FastAPI (rota única de revisão manual)
+  sources/
+    base.py                  OfferSource — interface comum a qualquer fonte
+    mercadolivre_scraper.py  fonte ATIVA: scraping (Playwright + BeautifulSoup)
+    mercadolivre_page.py     utilitário isolado: inspeciona 1 URL de produto
+    mercadolivre.py          fonte histórica via API oficial (desativada)
+    shopee.py                fonte via API oficial (precisa credenciais)
+templates/review.html      página única da dashboard (Jinja2)
+static/style.css            estilo da dashboard
+tests/                       pytest — ver seção Testes acima
+docs/                         decisões e arquitetura, ver abaixo
 ```
 
-Na raiz do repositório, execute:
-
-```
-python -m app.sources.mercadolivre_page "https://www.mercadolivre.com.br/URL-DO-PRODUTO"
-```
-
-Para salvar o JSON ou abrir a janela do navegador:
-
-```
-python -m app.sources.mercadolivre_page "https://www.mercadolivre.com.br/URL-DO-PRODUTO" --output resultado.json
-python -m app.sources.mercadolivre_page "https://www.mercadolivre.com.br/URL-DO-PRODUTO" --headed --verbose
-```
+Regra que vale pra qualquer arquivo em `app/sources/`: só ele conhece o
+formato da fonte (nomes de campo, seletores CSS, autenticação). Todo o
+resto do projeto (`scoring.py`, `filtro.py`, `message.py`, `main.py`) só
+conhece `Product` — trocar ou somar fonte não deveria exigir tocar neles.
 
 ## Documentação
 
 - [`docs/decisao-fonte-de-dados.md`](docs/decisao-fonte-de-dados.md) —
-  por que Mercado Livre foi descartado, alternativas comparadas, e por
-  que a Shopee foi escolhida pro MVP
-- [`docs/architecture.md`](docs/architecture.md) — arquitetura atual e decisões técnicas
-- [`docs/roadmap.md`](docs/roadmap.md) — o que é MVP, o que vem depois, o que NÃO é prioridade agora
-- [`docs/data-model.md`](docs/data-model.md) — modelo de dados (produto, oferta, preço, loja)
+  por que a API do Mercado Livre foi descartada, comparação com as
+  alternativas investigadas (Shopee, AliExpress, Amazon...), e o pivô
+  posterior para scraping
+- [`docs/architecture.md`](docs/architecture.md) — arquitetura atual e
+  decisões técnicas
+- [`docs/roadmap.md`](docs/roadmap.md) — o que é MVP, o que já foi feito,
+  o que vem depois, o que NÃO é prioridade agora
+- [`docs/data-model.md`](docs/data-model.md) — modelo de dados (`Product`)

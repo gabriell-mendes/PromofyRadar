@@ -62,7 +62,11 @@ def _para_decimal(valor) -> Decimal | None:
 
 
 class MercadoLivreSource(OfferSource):
-    name = "mercadolivre"
+    # Nome trocado pra "mercadolivre_api" (2026-09-16, ver app/config.py):
+    # "mercadolivre" sozinho agora aponta pra MercadoLivreScraperSource, que
+    # é a fonte que de fato roda. Esta classe fica só como referência caso a
+    # certificação de parceiro do Mercado Livre um dia se torne viável.
+    name = "mercadolivre_api"
 
     def __init__(self, forcar_tentativa: bool = False):
         self.forcar_tentativa = forcar_tentativa
