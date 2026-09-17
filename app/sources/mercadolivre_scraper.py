@@ -18,6 +18,12 @@ simples dentro de um arquivo só, não como classes/pastas separadas:
 3. output    -> normalizar(): já exigido pela interface OfferSource,
    converte o texto cru em Product (preço vira Decimal de verdade).
 
+Reaproveita de app/sources/mercadolivre_page.py (o scraper de página de
+PRODUTO único, já validado por Gabriel): _clean (limpeza de espaço),
+_money (texto "1.299" + "00" -> Decimal), _item_id (extrai o código MLB de
+uma URL) e _block_reason (detecta página de verificação/captcha na hora,
+pra parar em vez de tentar contornar — ver princípio do projeto de não
+burlar anti-bot).
 
 IMPORTANTE, mesma ressalva de sempre com scraping: o Mercado Livre muda o
 HTML da página de busca com uma certa frequência. Os seletores abaixo
@@ -28,6 +34,22 @@ Rode este arquivo direto (ver bloco no final) contra uma busca de verdade
 antes de confiar nos dados. Se um campo vier sempre None, o seletor
 provavelmente mudou: abra a página, aperte F12, e ajuste o valor
 correspondente em SELECTORS.
+
+CORREÇÃO (2026-09-17): o href capturado no título de cada card de busca
+é um link de TRACKING de anúncio (ex:
+click1.mercadolivre.com.br/mclics/clicks/external/...), não o link direto
+do produto, e esse link muda a cada carregamento de página por causa dos
+parâmetros de rastreamento (tracking_id, sid, etc). Usar esse link inteiro
+como source_id (o que acontecia antes) quebrava a persistência: o MESMO
+produto virava um "produto novo" a cada busca, porque o texto do link
+nunca é igual duas vezes. O Mercado Livre embute o ID real do produto
+dentro da própria query string desse link de tracking, no parâmetro
+`pdp_filters=item_id:MLB<numero>` — _item_id_da_url() extrai esse ID de
+lá (com fallback pra _item_id() genérico, pra continuar funcionando com
+uma URL "normal", sem tracking, se um dia o HTML mudar de novo). A URL
+final salva em Product.url também passa a ser montada a partir desse ID
+(URL_PRODUTO_BASE), em vez de guardar o link de tracking — ver
+normalizar() abaixo.
 """
 
 from __future__ import annotations
@@ -37,6 +59,7 @@ import os
 import time
 from datetime import datetime
 from decimal import Decimal
+from urllib.parse import parse_qs, urlparse
 
 from bs4 import BeautifulSoup
 from bs4.element import Tag
@@ -52,6 +75,15 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_TIMEOUT_MS = 30_000
 URL_BASE = "https://lista.mercadolivre.com.br"
+
+# Permalink direto do Mercado Livre baseado só no ID do produto (sem
+# depender do texto do título nem de nenhum parâmetro de tracking). Usado
+# em normalizar() pra montar Product.url a partir do item_id extraído do
+# link de tracking do card — ver "CORREÇÃO (2026-09-17)" acima. Vale
+# confirmar com um clique real assim que o scraping voltar a funcionar
+# (isso não foi validado contra o site ao vivo nesta sessão, por causa do
+# bloqueio temporário — ver conversa).
+URL_PRODUTO_BASE = "https://produto.mercadolivre.com.br"
 
 # Ponto único de manutenção dos seletores: se o Mercado Livre mudar o
 # layout, é aqui (e só aqui) que se mexe. Cada valor é uma tupla de
@@ -129,6 +161,34 @@ def _preco_atual(card: Tag) -> Decimal | None:
         if preco is not None:
             return preco
     return None
+
+
+def _item_id_da_url(url: str) -> str | None:
+    """Extrai o ID real do produto (ex: "MLB6448442404") de dentro de uma
+    URL de card de busca do Mercado Livre.
+
+    O href do título, nos resultados de busca, normalmente é um link de
+    TRACKING de anúncio (click1.mercadolivre.com.br/mclics/clicks/...),
+    não o link direto do produto — e esse link muda a cada carregamento
+    de página (parâmetros como tracking_id e sid são gerados por
+    requisição). Não dá pra usar esse link inteiro como identidade estável
+    do produto (ver "CORREÇÃO (2026-09-17)" no topo do arquivo).
+
+    O Mercado Livre, no entanto, embute o ID de verdade dentro da própria
+    query string desse link de tracking, no parâmetro
+    `pdp_filters=item_id:MLB<numero>` (url-encoded como
+    `pdp_filters=item_id%3AMLB<numero>` no HTML). Extraímos esse parâmetro
+    primeiro; se não existir (ex: um link já direto, sem tracking, caso o
+    Mercado Livre mude o HTML de novo no futuro), caímos no _item_id()
+    genérico (de mercadolivre_page.py), que procura um "MLB\\d+" solto em
+    qualquer parte da URL.
+    """
+    query = parse_qs(urlparse(url).query)
+    for valor in query.get("pdp_filters", []):
+        chave, _, resto = valor.partition(":")
+        if chave == "item_id" and resto:
+            return resto.strip().upper()
+    return _item_id(url)
 
 
 def _baixar_html_busca(
@@ -255,9 +315,19 @@ class MercadoLivreScraperSource(OfferSource):
         if preco is None or preco <= 0:
             raise ValueError(f"produto sem preço atual válido: {item_cru.get('url')!r}")
 
-        url = item_cru.get("url")
-        if not url:
+        url_bruta = item_cru.get("url")
+        if not url_bruta:
             raise ValueError("produto sem link")
+
+        # O href do card é um link de TRACKING, não o link direto do
+        # produto (ver "CORREÇÃO (2026-09-17)" no topo do arquivo). O ID
+        # real vem de dentro da query string desse link — é ele, não o
+        # link inteiro, que serve de identidade estável do produto entre
+        # buscas diferentes (pré-requisito pra app/storage.py reconhecer
+        # "já vi essa oferta antes").
+        item_id = _item_id_da_url(url_bruta)
+        if not item_id:
+            raise ValueError(f"não foi possível identificar o ID do produto: {url_bruta!r}")
 
         original_price = item_cru.get("previous_price")
         if original_price is not None and original_price <= preco:
@@ -269,11 +339,15 @@ class MercadoLivreScraperSource(OfferSource):
 
         return Product(
             source=self.name,
-            source_id=_item_id(url) or url,
+            source_id=item_id,
             title=item_cru.get("title") or "(sem título)",
             price=preco,
             original_price=original_price,
-            url=url,
+            # Link direto pro produto, montado a partir do ID — evita
+            # guardar/publicar um link de tracking de anúncio. Confirme
+            # com um clique real assim que o scraping voltar a funcionar
+            # (ver aviso em URL_PRODUTO_BASE, acima).
+            url=f"{URL_PRODUTO_BASE}/{item_id}",
             store=item_cru.get("seller") or "Loja não identificada",
             collected_at=datetime.now(),
         )
