@@ -146,6 +146,12 @@ fonte isolada, fora da dashboard:
 python -m app.sources.mercadolivre_scraper "notebook" --headed --verbose
 ```
 
+Para rodar com desconto mínimo:
+
+```powershell
+python -m app.sources.mercadolivre_scraper "placa de video amd" --desconto-min 40 --limit 10 --headed --verbose
+```
+
 `--headed` abre o navegador visível, `--verbose` mostra os logs. Mostra o
 primeiro item cru extraído (antes de normalizar) e a lista já normalizada.
 Se um campo vier `None`, é sinal de que o seletor CSS correspondente
