@@ -18,12 +18,6 @@ simples dentro de um arquivo só, não como classes/pastas separadas:
 3. output    -> normalizar(): já exigido pela interface OfferSource,
    converte o texto cru em Product (preço vira Decimal de verdade).
 
-Reaproveita de app/sources/mercadolivre_page.py (o scraper de página de
-PRODUTO único, já validado por Gabriel): _clean (limpeza de espaço),
-_money (texto "1.299" + "00" -> Decimal), _item_id (extrai o código MLB de
-uma URL) e _block_reason (detecta página de verificação/captcha na hora,
-pra parar em vez de tentar contornar — ver princípio do projeto de não
-burlar anti-bot).
 
 IMPORTANTE, mesma ressalva de sempre com scraping: o Mercado Livre muda o
 HTML da página de busca com uma certa frequência. Os seletores abaixo
