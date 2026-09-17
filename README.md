@@ -105,12 +105,36 @@ uvicorn app.main:app --reload
 Abra http://127.0.0.1:8000 — aparece uma lista de ofertas reais do
 Mercado Livre, com score, motivo do score, e a mensagem pronta.
 
-Dá pra mudar a busca e o desconto mínimo direto na página (sem editar
-`.env` nem reiniciar), ou pela URL: `http://127.0.0.1:8000/?q=ssd+nvme&desconto_min=50`.
-
 Isso **não é** o dashboard/frontend completo mencionado como fora de
 escopo em `docs/roadmap.md` — é a tela mínima da etapa de revisão manual,
 sem React/build tooling, fácil de trocar depois.
+
+### Mudando o que buscar e o desconto mínimo
+
+Duas formas, dependendo se você quer mudar só pra essa busca ou deixar um
+padrão novo pra sempre.
+
+**Na própria página**, sem editar nada: tem um campo de texto (o que
+buscar) e um campo numérico (desconto mínimo em %) ao lado do botão
+"Buscar". Muda os dois e busca de novo, sem reiniciar o servidor.
+
+**Direto pela URL**, do mesmo jeito, útil se você quer salvar um link ou
+testar rápido no terminal/Postman:
+
+```
+http://127.0.0.1:8000/?q=ssd+nvme&desconto_min=50
+```
+
+`q` é o termo de busca (qualquer coisa: "notebook", "monitor 144hz",
+"placa de vídeo amd"), `desconto_min` é o corte de desconto em %. Os dois
+são opcionais — se não passar nenhum, usa os padrões (`notebook` e `30`).
+
+**Pra mudar o padrão permanentemente**, sem precisar passar na URL toda
+vez: edite `DESCONTO_MINIMO_PERCENTUAL` no `.env` (ver tabela de variáveis
+acima) e reinicie o `uvicorn`. Não existe hoje um jeito de mudar o termo
+de busca padrão fora do código — ele é a constante `QUERY_PADRAO` em
+`app/main.py` — mas como o campo na página já cobre "buscar outra coisa"
+sem reiniciar nada, isso raramente é necessário.
 
 ### 4. Validar o scraper com dado real
 

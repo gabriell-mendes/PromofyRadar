@@ -287,13 +287,25 @@ class MercadoLivreScraperSource(OfferSource):
 
 if __name__ == "__main__":
     # python -m app.sources.mercadolivre_scraper "notebook" --headed --verbose
+    # python -m app.sources.mercadolivre_scraper "camiseta preta" --desconto-min 30
     #
     # Rodar isso é o jeito mais rápido de validar se os seletores em
     # SELECTORS ainda batem com o site real. --headed abre o navegador
     # visível (mais fácil de ver o que está acontecendo se algo vier
     # None); --verbose mostra os logs de INFO/DEBUG.
+    #
+    # Por padrão, ESTE SCRIPT MOSTRA TUDO que normalizar() aceitou, com
+    # desconto ou não — de propósito, pra servir de ferramenta de
+    # depuração (você ver o desconto real de cada item calculado). Quem
+    # decide "desconto mínimo" não é a fonte (app/sources/mercadolivre_scraper.py),
+    # é uma etapa separada (app/filtro.py) — ver docs/architecture.md,
+    # seção "Por que separar fonte / análise / filtro?". Passe
+    # --desconto-min pra aplicar esse filtro aqui também, do mesmo jeito
+    # que a dashboard (app/main.py) já aplica.
     import argparse
     import json
+
+    from ..filtro import atende_desconto_minimo, calcular_desconto_percentual
 
     parser = argparse.ArgumentParser(
         description="Testa a busca por scraping no Mercado Livre com dados reais."
@@ -302,6 +314,13 @@ if __name__ == "__main__":
     parser.add_argument("--limit", type=int, default=5)
     parser.add_argument("--headed", action="store_true", help="Mostra a janela do navegador")
     parser.add_argument("--verbose", action="store_true")
+    parser.add_argument(
+        "--desconto-min",
+        type=float,
+        default=None,
+        metavar="PERCENTUAL",
+        help="Só mostra produtos com desconto real >= esse valor (%%). Sem essa opção, mostra tudo.",
+    )
     args = parser.parse_args()
 
     logging.basicConfig(
@@ -330,8 +349,26 @@ if __name__ == "__main__":
                 ensure_ascii=False,
             )
         )
-        print("\nDepois de normalizar (o que sobrevive a normalizar()):")
-        for produto in fonte.buscar_produtos(args.query, limit=args.limit):
+
+        produtos = fonte.buscar_produtos(args.query, limit=args.limit)
+        total_normalizados = len(produtos)
+        if args.desconto_min is not None:
+            produtos = [p for p in produtos if atende_desconto_minimo(p, args.desconto_min)]
+
+        if args.desconto_min is not None:
+            print(
+                f"\nDepois de normalizar e filtrar (desconto >= {args.desconto_min:.0f}%): "
+                f"{len(produtos)} de {total_normalizados} produto(s)."
+            )
+        else:
+            print(f"\nDepois de normalizar, sem filtro de desconto ({total_normalizados} produto(s)):")
+
+        for produto in produtos:
+            desconto = calcular_desconto_percentual(produto)
+            desconto_txt = f"{desconto:.0f}%" if desconto is not None else "sem desconto informado"
             de = f"R$ {produto.original_price}" if produto.original_price else "-"
             print(f"- {produto.title}")
-            print(f"  De {de} por R$ {produto.price} | {produto.store} | {produto.url}")
+            print(
+                f"  De {de} por R$ {produto.price} | desconto: {desconto_txt} | "
+                f"{produto.store} | {produto.url}"
+            )

@@ -45,12 +45,26 @@ FONTE_PADRAO = "mercadolivre"
 # app/filtro.py. Pode mudar sem tocar em código: variável de ambiente
 # DESCONTO_MINIMO_PERCENTUAL no .env, ou por busca via query string
 # ?desconto_min=50 na dashboard (app/main.py).
-DESCONTO_MINIMO_PADRAO = float(os.environ.get("DESCONTO_MINIMO_PERCENTUAL", "40"))
+DESCONTO_MINIMO_PADRAO = float(os.environ.get("DESCONTO_MINIMO_PERCENTUAL", "30"))
+
+
+# Cache de instâncias, uma por nome de fonte. Existe por um motivo
+# concreto, não por otimização: MercadoLivreScraperSource guarda o
+# horário da última chamada (self._ultima_chamada) pra respeitar
+# MERCADOLIVRE_MIN_INTERVAL_SECONDS entre buscas. Se get_source() criasse
+# uma instância NOVA a cada chamada (como fazia antes), esse controle de
+# rate limit nunca funcionaria de verdade na dashboard: cada busca
+# começaria com _ultima_chamada=0.0, e o intervalo mínimo nunca seria
+# aplicado entre um clique em "Buscar" e o próximo — exatamente o tipo de
+# coisa que pode fazer o Mercado Livre bloquear por excesso de requisição
+# em pouco tempo.
+_INSTANCIAS: dict[str, OfferSource] = {}
 
 
 def get_source(nome: str | None = None) -> OfferSource:
-    """Instancia a fonte pelo nome (ou pela variável de ambiente
-    OFFER_SOURCE, ou pela fonte padrão do MVP — ver FONTE_PADRAO acima).
+    """Instancia (ou reaproveita) a fonte pelo nome (ou pela variável de
+    ambiente OFFER_SOURCE, ou pela fonte padrão do MVP — ver FONTE_PADRAO
+    acima).
     """
     nome = nome or os.environ.get("OFFER_SOURCE", FONTE_PADRAO)
     try:
@@ -60,4 +74,7 @@ def get_source(nome: str | None = None) -> OfferSource:
         raise ValueError(
             f"Fonte de ofertas desconhecida: {nome!r}. Disponíveis: {disponiveis}"
         ) from None
-    return classe()
+
+    if nome not in _INSTANCIAS:
+        _INSTANCIAS[nome] = classe()
+    return _INSTANCIAS[nome]

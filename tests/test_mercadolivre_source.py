@@ -35,7 +35,11 @@ def test_normalizacao_continua_correta_para_quando_o_bloqueio_acabar():
     fonte = MercadoLivreSource()
     produto = fonte.normalizar(ITEM_VALIDO)
 
-    assert produto.source == "mercadolivre"
+    # "mercadolivre_api", não "mercadolivre": desde 2026-09-16 esse nome
+    # ficou reservado pra fonte ativa (scraping, ver
+    # app/sources/mercadolivre_scraper.py) — esta classe é a API oficial,
+    # mantida só como referência (ver docstring do arquivo).
+    assert produto.source == "mercadolivre_api"
     assert produto.source_id == "MLB123"
     assert str(produto.price) == "2500"
     assert str(produto.original_price) == "2999"

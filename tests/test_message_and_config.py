@@ -3,11 +3,25 @@ from decimal import Decimal
 
 import pytest
 
+from app import config
 from app.config import get_source
 from app.message import format_price, generate_message
 from app.models import Product, ReviewItem
 from app.sources.mercadolivre import MercadoLivreSource
+from app.sources.mercadolivre_scraper import MercadoLivreScraperSource
 from app.sources.shopee import ShopeeSource
+
+
+@pytest.fixture(autouse=True)
+def limpar_cache_de_fontes():
+    """get_source() cacheia uma instância por nome (ver app/config.py —
+    necessário pro rate limit da fonte funcionar de verdade entre
+    chamadas). Sem limpar entre testes, um teste poderia herdar a
+    instância (e o estado interno dela) criada por outro teste.
+    """
+    config._INSTANCIAS.clear()
+    yield
+    config._INSTANCIAS.clear()
 
 
 def test_format_price_usa_virgula_brasileira():
@@ -47,12 +61,27 @@ def test_generate_message_sem_original_price_usa_preco_atual_nos_dois_lados():
     assert "De R$ 50,00 por R$ 50,00" in msg
 
 
-def test_get_source_padrao_e_shopee():
-    assert isinstance(get_source(), ShopeeSource)
+def test_get_source_padrao_e_mercadolivre_scraper():
+    # Padrão mudou pra Mercado Livre via scraping (2026-09-16): funciona
+    # sem credencial, ao contrário da Shopee — ver docs/decisao-fonte-de-dados.md.
+    assert isinstance(get_source(), MercadoLivreScraperSource)
 
 
 def test_get_source_por_nome():
-    assert isinstance(get_source("mercadolivre"), MercadoLivreSource)
+    assert isinstance(get_source("shopee"), ShopeeSource)
+    # API oficial do Mercado Livre, mantida só como referência histórica
+    # (ver app/config.py) — chave separada de "mercadolivre" de propósito.
+    assert isinstance(get_source("mercadolivre_api"), MercadoLivreSource)
+
+
+def test_get_source_reaproveita_a_mesma_instancia():
+    """get_source() cacheia por nome — ver o comentário em app/config.py.
+    Existe pra MercadoLivreScraperSource conseguir respeitar
+    MERCADOLIVRE_MIN_INTERVAL_SECONDS de verdade entre buscas na
+    dashboard: se uma instância nova fosse criada a cada chamada, o
+    rate limit nunca teria efeito nenhum.
+    """
+    assert get_source("shopee") is get_source("shopee")
 
 
 def test_get_source_nome_desconhecido_levanta_erro_claro():
