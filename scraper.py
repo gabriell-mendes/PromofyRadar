@@ -7,7 +7,7 @@ from decimal import Decimal
 from typing import List, Dict, Optional
 
 from playwright.async_api import async_playwright, Page
-from playwright_stealth import stealth_async
+from playwright_stealth import stealth_sync as stealth_async
 
 # Configuração de Logs
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
