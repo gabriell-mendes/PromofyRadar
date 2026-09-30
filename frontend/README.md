@@ -79,6 +79,9 @@ de vez.
 
 - **Restaurar**: devolve o produto para a lista de Produtos (um ou vários selecionados).
 - Em cada card aparece quanto tempo falta para apagar.
+- **Apagar de vez**: lixeira no card, "Apagar de vez" na barra de lote (vários selecionados)
+  ou "Esvaziar descartados" (todos). Pede confirmação e não tem volta. Depois de apagado,
+  se o scraper achar o produto de novo, ele volta como oferta nova.
 - Uma busca nova do scraper **não traz de volta** produtos descartados que ainda estão
   nos 7 dias (o terminal avisa quantos foram ignorados). Depois de apagados, se o
   scraper achar o produto de novo, ele volta como oferta nova.
@@ -107,7 +110,13 @@ Lista de objetos (ou `{"items": [...]}`):
 ```
 
 `title` e `link` são obrigatórios. `link` também identifica o item (é a chave do
-status "Enviado"). `image` é opcional: sem ele, o card mostra um ícone cinza.
+status "Enviado" e dos descartados). O scraper remove o trecho `#polycard_client=...`
+do link, porque ele muda a cada busca e faria o mesmo produto parecer diferente.
+
+`image` é preenchido pelo scraper (foto do card do Mercado Livre). Se faltar, o card
+mostra um ícone cinza. Ofertas coletadas antes dessa mudança não têm imagem: rode a
+busca de novo (marque "Substituir lista de Produtos" para não misturar com os links
+antigos).
 
 ## Estrutura
 

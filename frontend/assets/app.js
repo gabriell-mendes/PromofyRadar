@@ -127,6 +127,8 @@ function render() {
   $('btnLoteEnviar').classList.toggle('hidden', emDesc);
   $('btnLoteDescartar').classList.toggle('hidden', emDesc);
   $('btnLoteRestaurar').classList.toggle('hidden', !emDesc);
+  $('btnLoteExcluir').classList.toggle('hidden', !emDesc);
+  $('btnEsvaziar').classList.toggle('hidden', !emDesc || descartados.length === 0);
 }
 
 function chip(id, texto, ativo, tipo) {
@@ -138,7 +140,7 @@ function card(o) {
   const sel = selecionados.has(o.link);
   const temDesc = (o.discount || 0) > 0;
   const img = o.image
-    ? `<img src="${esc(o.image)}" alt="" loading="lazy" class="w-full h-full object-contain p-3">`
+    ? `<img src="${esc(o.image)}" alt="" loading="lazy" referrerpolicy="no-referrer" class="w-full h-full object-contain p-3">`
     : `<svg class="w-12 h-12 text-slate-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>`;
   return `
   <div class="bg-card border ${sel ? 'border-emerald-500' : 'border-line'} rounded-xl overflow-hidden flex flex-col">
@@ -183,7 +185,12 @@ function cardDescartado(o) {
       </div>
       <p class="text-xs text-amber-300/80 mt-2">${textoRestante(o)}</p>
       <div class="mt-auto pt-4">
-        <button data-restore="${esc(o.link)}" class="w-full px-3 py-2 text-sm rounded-lg bg-bg border border-line hover:border-emerald-500 hover:text-emerald-300">Restaurar</button>
+        <div class="flex gap-2">
+          <button data-restore="${esc(o.link)}" class="flex-1 px-3 py-2 text-sm rounded-lg bg-bg border border-line hover:border-emerald-500 hover:text-emerald-300">Restaurar</button>
+          <button data-purge="${esc(o.link)}" title="Apagar de vez" class="px-3 py-2 rounded-lg bg-bg border border-line text-slate-400 hover:text-red-300 hover:border-red-500/50">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6"/></svg>
+          </button>
+        </div>
       </div>
     </div>
   </div>`;
@@ -212,6 +219,8 @@ async function descartar(links) {
   if (!alvo.length) return;
   try {
     await api('/api/descartar', { offers: alvo });
+    const sair = new Set(links);
+    offers = offers.filter((o) => !sair.has(o.link));   // o servidor também tirou do ofertas.json
     links.forEach((l) => selecionados.delete(l));
     await carregarDescartados();
     toast(`${alvo.length} descartado(s). Ficam ${diasDescarte} dias na aba Descartados.`);
@@ -228,6 +237,27 @@ async function restaurar(links) {
   } catch (e) { toast(e.message); }
 }
 
+function confirmar(texto) {
+  return new Promise((resolve) => {
+    $('confirmTxt').textContent = texto;
+    $('confirmModal').classList.remove('hidden');
+    const fim = (v) => { $('confirmModal').classList.add('hidden'); $('confirmSim').onclick = $('confirmNao').onclick = null; resolve(v); };
+    $('confirmSim').onclick = () => fim(true);
+    $('confirmNao').onclick = () => fim(false);
+  });
+}
+
+async function excluirDefinitivo(links, texto) {
+  if (!links.length) return;
+  if (!(await confirmar(texto))) return;
+  try {
+    const r = await api('/api/descartados/excluir', { links });
+    links.forEach((l) => selecionados.delete(l));
+    await carregarDescartados();
+    toast(`${r.excluidos} produto(s) apagado(s) de vez.`);
+  } catch (e) { toast(e.message); }
+}
+
 function abrirPreview(link) {
   const o = ativos().find((x) => x.link === link);
   if (!o) return;
@@ -240,12 +270,13 @@ function fecharPreview() { $('modal').classList.add('hidden'); previewKey = null
 
 /* ============ EVENTOS ============ */
 document.addEventListener('click', (e) => {
-  const t = e.target.closest('[data-status],[data-prev],[data-undo],[data-view],[data-discard],[data-restore]');
+  const t = e.target.closest('[data-status],[data-prev],[data-undo],[data-view],[data-discard],[data-restore],[data-purge]');
   if (!t) return;
   if (t.dataset.view) setView(t.dataset.view);
   else if (t.dataset.status) { f.status = t.dataset.status; selecionados.clear(); render(); }
   else if (t.dataset.discard) descartar([t.dataset.discard]);
   else if (t.dataset.restore) restaurar([t.dataset.restore]);
+  else if (t.dataset.purge) excluirDefinitivo([t.dataset.purge], 'Apagar este produto de vez? Não dá para desfazer.');
   else if (t.dataset.prev) abrirPreview(t.dataset.prev);
   else if (t.dataset.undo) { delete enviados[t.dataset.undo]; salvarEnviados(); render(); }
 });
@@ -270,11 +301,16 @@ $('ordem').addEventListener('change', (e) => { f.ordem = e.target.value; render(
 $('btnLoteEnviar').addEventListener('click', () => marcarEnviado([...selecionados]));
 $('btnLoteDescartar').addEventListener('click', () => descartar([...selecionados]));
 $('btnLoteRestaurar').addEventListener('click', () => restaurar([...selecionados]));
+$('btnLoteExcluir').addEventListener('click', () => excluirDefinitivo([...selecionados], `Apagar ${selecionados.size} produto(s) de vez? Não dá para desfazer.`));
+$('btnEsvaziar').addEventListener('click', () => excluirDefinitivo(descartados.map((d) => d.link), `Apagar TODOS os ${descartados.length} produtos descartados de vez? Não dá para desfazer.`));
 $('btnLoteLimpar').addEventListener('click', () => { selecionados.clear(); render(); });
 
 $('mCancelar').addEventListener('click', fecharPreview);
 $('modal').addEventListener('click', (e) => { if (e.target === $('modal')) fecharPreview(); });
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape') fecharPreview(); });
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  if (!$('confirmModal').classList.contains('hidden')) $('confirmNao').click(); else fecharPreview();
+});
 $('mEnviar').addEventListener('click', () => { if (previewKey) marcarEnviado([previewKey]); fecharPreview(); });
 $('mCopiar').addEventListener('click', async () => {
   try { await navigator.clipboard.writeText($('preview').textContent); $('mCopiar').textContent = 'Copiado'; setTimeout(() => ($('mCopiar').textContent = 'Copiar texto'), 1500); } catch {}

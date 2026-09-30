@@ -84,6 +84,33 @@ class SmartOfferScraper:
         match_int = re.search(r"(\d+)", raw_text)
         return float(match_int.group(0)) if match_int else 0.0
 
+    async def _extract_image(self, item) -> str:
+        """URL da foto do produto. O ML às vezes só carrega a imagem quando o card aparece na tela."""
+        img = await item.query_selector(
+            "img.poly-component__picture, .poly-card__portada img, "
+            ".ui-search-result-image__element, img"
+        )
+        if not img:
+            return ""
+        for tentativa in range(2):
+            for attr in ("src", "data-src", "data-lazy-src"):
+                val = await img.get_attribute(attr)
+                if val and val.startswith("http"):
+                    return val
+            srcset = await img.get_attribute("srcset")
+            if srcset:
+                primeira = srcset.split(",")[0].strip().split(" ")[0]
+                if primeira.startswith("http"):
+                    return primeira
+            if tentativa == 0:
+                # imagem ainda não carregou: traz o card para a tela e tenta de novo
+                try:
+                    await item.scroll_into_view_if_needed(timeout=2000)
+                except Exception:
+                    pass
+                await self._human_delay(0.3, 0.6)
+        return ""
+
     async def _dump_debug_html(self, page: Page, tag: str):
         if not self.debug:
             return
@@ -127,6 +154,10 @@ class SmartOfferScraper:
                 link = await link_el.get_attribute("href") if link_el else None
                 if link and not link.startswith("http"):
                     link = f"https://www.mercadolivre.com.br{link}"
+                if link:
+                    # tira o "#polycard_client=...&tracking_id=..." (muda a cada busca e
+                    # faria o mesmo produto parecer diferente ao deduplicar)
+                    link = link.split("#")[0]
 
                 # Sem link não dá pra deduplicar nem oferecer o produto: pula
                 if not link:
@@ -154,6 +185,7 @@ class SmartOfferScraper:
                     await installment_el.inner_text() if installment_el else "Consulte no site"
                 )
                 installment_info = " ".join(installment_info.split())
+                image_url = await self._extract_image(item)
 
                 self.seen_links.add(link)
 
@@ -166,6 +198,7 @@ class SmartOfferScraper:
                             "discount": round(actual_discount, 2),
                             "installment": installment_info,
                             "link": link,
+                            "image": image_url,
                         }
                     )
                     logger.info(

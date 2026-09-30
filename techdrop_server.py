@@ -239,6 +239,17 @@ def restaurar(body: LinksBody):
     return {"restaurados": len(voltam)}
 
 
+@app.post("/api/descartados/excluir", dependencies=[Depends(somente_painel)])
+def excluir_descartados(body: LinksBody):
+    """Apaga de vez (sem volta) os descartados escolhidos, sem esperar os 7 dias."""
+    with DATA_LOCK:
+        descartados = _purgar_descartados()
+        alvo = set(body.links)
+        restantes = [o for o in descartados if o.get("link") not in alvo]
+        _gravar(DESCARTADOS_JSON, restantes)
+    return {"excluidos": len(descartados) - len(restantes)}
+
+
 @app.get("/api/ping")
 def ping():
     return {"ok": True, "scraper": SCRAPER.name, "scraper_existe": SCRAPER.exists()}
