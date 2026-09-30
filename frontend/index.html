@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="pt-BR" class="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TechDrop</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = { darkMode: 'class', theme: { extend: { colors: { bg: '#0b0f17', panel: '#111827', card: '#141b2b', line: '#1f2937' } } } };
+</script>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body class="bg-bg text-slate-200 min-h-screen font-sans">
+
+<!-- SIDEBAR -->
+<aside class="hidden md:flex fixed inset-y-0 left-0 w-56 flex-col bg-panel border-r border-line">
+  <div class="px-5 py-5 text-lg font-bold tracking-tight text-white">Tech<span class="text-emerald-400">Drop</span></div>
+  <nav id="nav" class="flex-1 px-3 space-y-1 text-sm"></nav>
+  <div class="p-4 text-xs text-slate-500 border-t border-line">TechDrop v0.2</div>
+</aside>
+
+<!-- MAIN -->
+<main class="md:ml-56 p-4 md:p-6 pb-28">
+
+  <!-- Navegação no celular -->
+  <div id="navMobile" class="md:hidden flex gap-2 mb-4"></div>
+
+<section id="viewProdutos">
+
+  <!-- Cabeçalho -->
+  <div class="flex flex-wrap items-center justify-between gap-3 mb-5">
+    <div>
+      <h1 class="text-xl font-semibold text-white flex items-center gap-2">Ofertas <span class="text-xs font-bold px-2 py-1 rounded bg-yellow-400 text-slate-900">Mercado Livre</span></h1>
+      <p id="fonte" class="text-xs text-slate-500 mt-0.5">Carregando...</p>
+    </div>
+    <div class="flex gap-2">
+      <button id="btnRecarregar" class="px-3 py-2 text-sm rounded-lg bg-panel border border-line hover:border-slate-500">Recarregar</button>
+      <label class="px-3 py-2 text-sm rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white cursor-pointer">
+        Carregar JSON
+        <input id="fileInput" type="file" accept=".json,application/json" class="hidden">
+      </label>
+    </div>
+  </div>
+
+  <!-- Abas de status -->
+  <div id="tabsStatus" class="flex flex-wrap gap-2 mb-5"></div>
+
+  <!-- Filtros -->
+  <div class="flex flex-wrap items-center gap-x-6 gap-y-3 bg-panel border border-line rounded-xl p-3 mb-5">
+    <label class="flex items-center gap-2 text-sm cursor-pointer select-none">
+      <input id="chkAll" type="checkbox"> Marcar todos
+    </label>
+    <div class="flex items-center gap-3 text-sm">
+      <span class="text-slate-400 whitespace-nowrap">Desconto mín: <b id="minLabel" class="text-emerald-400">0%</b></span>
+      <input id="minRange" type="range" min="0" max="80" step="5" value="0" class="w-40">
+    </div>
+    <input id="busca" type="search" placeholder="Buscar no título..." class="flex-1 min-w-40 bg-bg border border-line rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-500">
+    <select id="ordem" class="bg-bg border border-line rounded-lg px-3 py-2 text-sm outline-none">
+      <option value="disc">Maior desconto</option>
+      <option value="asc">Menor preço</option>
+      <option value="desc">Maior preço</option>
+    </select>
+  </div>
+
+  <!-- Grade -->
+  <div id="grid" class="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4"></div>
+  <div id="vazio" class="hidden text-center text-slate-500 py-20">
+    <p id="vazioTxt" class="mb-2">Nenhuma oferta para mostrar.</p>
+    <p class="text-xs">Gere o <code class="text-slate-300">ofertas.json</code> com o scraper ou use o botão "Carregar JSON".</p>
+  </div>
+</section>
+
+<!-- ============ ABA SCRAPER ============ -->
+<section id="viewScraper" class="hidden">
+  <div class="flex flex-wrap items-center justify-between gap-3 mb-5">
+    <div>
+      <h1 class="text-xl font-semibold text-white flex items-center gap-2">Scraper <span class="text-xs font-bold px-2 py-1 rounded bg-yellow-400 text-slate-900">Mercado Livre</span></h1>
+      <p class="text-xs text-slate-500 mt-0.5">Mesmo fluxo do terminal: produto, desconto mínimo, páginas e debug. O Chrome abre na sua tela durante a busca.</p>
+    </div>
+    <span id="sStatus" class="text-xs font-bold px-3 py-1.5 rounded-full bg-slate-700 text-slate-300">PARADO</span>
+  </div>
+
+  <div id="sAviso" class="hidden mb-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/40 text-amber-200 text-sm"></div>
+
+  <div class="grid gap-4 lg:grid-cols-[20rem_1fr]">
+    <!-- Parâmetros -->
+    <form id="sForm" class="bg-panel border border-line rounded-xl p-4 space-y-4 self-start">
+      <h2 class="font-semibold text-white">Parâmetros</h2>
+      <label class="block text-sm">
+        <span class="text-slate-400">Produto que deseja buscar</span>
+        <input id="sQuery" type="text" placeholder="ex: ssd nvme 1tb" autocomplete="off" class="mt-1 w-full bg-bg border border-line rounded-lg px-3 py-2 outline-none focus:border-emerald-500">
+      </label>
+      <div class="grid grid-cols-2 gap-3">
+        <label class="block text-sm">
+          <span class="text-slate-400">Desconto mín. (%)</span>
+          <input id="sMin" type="number" min="0" max="99" step="1" placeholder="10" class="mt-1 w-full bg-bg border border-line rounded-lg px-3 py-2 outline-none focus:border-emerald-500">
+        </label>
+        <label class="block text-sm">
+          <span class="text-slate-400">Páginas</span>
+          <input id="sPages" type="number" min="1" max="20" step="1" placeholder="1" class="mt-1 w-full bg-bg border border-line rounded-lg px-3 py-2 outline-none focus:border-emerald-500">
+        </label>
+      </div>
+      <label class="flex items-center gap-2 text-sm cursor-pointer select-none">
+        <input id="sDebug" type="checkbox"> <span>Salvar HTML de debug em caso de falha</span>
+      </label>
+      <label class="flex items-center gap-2 text-sm cursor-pointer select-none">
+        <input id="sReplace" type="checkbox"> <span>Substituir lista de Produtos <span class="text-slate-500">(senão soma)</span></span>
+      </label>
+      <div class="flex flex-col gap-2 pt-1">
+        <button id="sStart" type="submit" class="px-4 py-2.5 text-sm font-medium rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white disabled:opacity-40 disabled:cursor-not-allowed">Iniciar busca</button>
+        <button id="sManual" type="button" class="px-4 py-2 text-sm rounded-lg bg-bg border border-line hover:border-slate-500 disabled:opacity-40 disabled:cursor-not-allowed">Modo terminal (responder digitando)</button>
+        <button id="sStop" type="button" class="hidden px-4 py-2.5 text-sm font-medium rounded-lg bg-red-600 hover:bg-red-500 text-white">Parar</button>
+      </div>
+    </form>
+
+    <!-- Terminal -->
+    <div class="bg-black border border-line rounded-xl overflow-hidden flex flex-col min-h-[28rem]">
+      <div class="flex items-center justify-between px-4 py-2 bg-panel border-b border-line">
+        <div class="flex items-center gap-2 text-xs text-slate-400">
+          <span class="w-3 h-3 rounded-full bg-red-500/70"></span><span class="w-3 h-3 rounded-full bg-yellow-500/70"></span><span class="w-3 h-3 rounded-full bg-green-500/70"></span>
+          <span class="ml-2 font-mono">python scraperd.py</span>
+        </div>
+        <button id="sClear" type="button" class="text-xs text-slate-400 hover:text-white">Limpar</button>
+      </div>
+      <pre id="sTerm" class="flex-1 overflow-auto p-4 text-xs sm:text-sm font-mono text-emerald-200 whitespace-pre-wrap break-words h-[26rem]"></pre>
+      <form id="sInputForm" class="flex items-center gap-2 px-4 py-2 border-t border-line bg-panel">
+        <span class="font-mono text-emerald-400">&gt;</span>
+        <input id="sInput" type="text" autocomplete="off" disabled placeholder="Digite a resposta e aperte Enter (quando o scraper perguntar)" class="flex-1 bg-transparent font-mono text-sm outline-none placeholder:text-slate-600 disabled:opacity-50">
+      </form>
+    </div>
+  </div>
+
+  <div id="sResumo" class="hidden mt-4 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/40 flex flex-wrap items-center justify-between gap-3">
+    <p id="sResumoTxt" class="text-sm text-emerald-200"></p>
+    <button id="sVerProdutos" type="button" class="px-4 py-2 text-sm rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white">Ver em Produtos</button>
+  </div>
+</section>
+</main>
+
+<!-- Barra de ações em lote -->
+<div id="lote" class="hidden fixed bottom-4 left-1/2 -translate-x-1/2 md:left-[calc(50%+7rem)] z-40 bg-panel border border-emerald-600/50 shadow-2xl rounded-xl px-4 py-3 flex items-center gap-4">
+  <span class="text-sm"><b id="loteN">0</b> selecionados</span>
+  <button id="btnLoteEnviar" class="px-3 py-2 text-sm rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white">Marcar como enviados</button>
+  <button id="btnLoteDescartar" class="px-3 py-2 text-sm rounded-lg bg-bg border border-red-500/50 text-red-300 hover:bg-red-500/10">Descartar</button>
+  <button id="btnLoteRestaurar" class="hidden px-3 py-2 text-sm rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white">Restaurar</button>
+  <button id="btnLoteLimpar" class="px-3 py-2 text-sm rounded-lg bg-bg border border-line hover:border-slate-500">Limpar</button>
+</div>
+
+<!-- Aviso rápido -->
+<div id="toast" class="hidden fixed bottom-6 right-6 z-[60] max-w-sm bg-panel border border-line shadow-2xl rounded-lg px-4 py-3 text-sm"></div>
+
+<!-- Modal Preview -->
+<div id="modal" class="hidden fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+  <div class="bg-panel border border-line rounded-2xl w-full max-w-md p-5">
+    <h2 class="font-semibold text-white mb-3">Preview da mensagem</h2>
+    <pre id="preview" class="whitespace-pre-wrap break-words text-sm bg-bg border border-line rounded-lg p-3 max-h-80 overflow-auto font-sans"></pre>
+    <div class="flex flex-wrap justify-end gap-2 mt-4">
+      <button id="mCancelar" class="px-3 py-2 text-sm rounded-lg bg-bg border border-line hover:border-slate-500">Cancelar</button>
+      <button id="mCopiar" class="px-3 py-2 text-sm rounded-lg bg-bg border border-line hover:border-slate-500">Copiar texto</button>
+      <button id="mEnviar" class="px-3 py-2 text-sm rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white">Marcar como enviado</button>
+    </div>
+  </div>
+</div>
+
+<script src="assets/app.js"></script>
+<script src="assets/scraper.js"></script>
+</body>
+</html>

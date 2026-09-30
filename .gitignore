@@ -7,3 +7,20 @@ venv/
 *.egg-info/
 .DS_Store
 TechBlog (site hostinger)/
+
+# Perfis de navegador (Playwright/Chrome)
+*_profile/
+*_profile_v*/
+browser_profile/
+ml_session*/
+smart_offers_v*/
+lightning_offers_*/
+
+# Debug e temporarios
+debug_snapshots/
+debug_*.html
+debug_*.png
+*.bak*
+.cache/
+node_modules/
+dist/

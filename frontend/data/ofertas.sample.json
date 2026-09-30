@@ -1,0 +1,98 @@
+[
+  {
+    "title": "SSD NVMe Kingston NV2 1TB",
+    "price": 1333.45,
+    "old_price": 2515.94,
+    "discount": 47.0,
+    "installment": "em 10x R$ 133.34 sem juros",
+    "link": "https://www.mercadolivre.com.br/exemplo-2"
+  },
+  {
+    "title": "Placa de Vídeo AMD Radeon RX 6600 8GB",
+    "price": 2106.37,
+    "old_price": 3974.28,
+    "discount": 47.0,
+    "installment": "em 10x R$ 210.64 sem juros",
+    "link": "https://www.mercadolivre.com.br/exemplo-4"
+  },
+  {
+    "title": "Teclado Mecânico Redragon Kumara",
+    "price": 748.92,
+    "old_price": 1413.06,
+    "discount": 47.0,
+    "installment": "em 10x R$ 74.89 sem juros",
+    "link": "https://www.mercadolivre.com.br/exemplo-6"
+  },
+  {
+    "title": "Headset HyperX Cloud Stinger",
+    "price": 1894.39,
+    "old_price": 3574.32,
+    "discount": 47.0,
+    "installment": "em 10x R$ 189.44 sem juros",
+    "link": "https://www.mercadolivre.com.br/exemplo-7"
+  },
+  {
+    "title": "Monitor Samsung Odyssey G3 165Hz",
+    "price": 2967.19,
+    "old_price": 5029.14,
+    "discount": 41.0,
+    "installment": "em 10x R$ 296.72 sem juros",
+    "link": "https://www.mercadolivre.com.br/exemplo-10"
+  },
+  {
+    "title": "Mouse Gamer Logitech G203 RGB",
+    "price": 970.68,
+    "old_price": 1183.76,
+    "discount": 18.0,
+    "installment": "em 10x R$ 97.07 sem juros",
+    "link": "https://www.mercadolivre.com.br/exemplo-5"
+  },
+  {
+    "title": "Notebook Acer Aspire 5 i5 8GB 512GB SSD",
+    "price": 900.52,
+    "old_price": 1023.32,
+    "discount": 12.0,
+    "installment": "em 10x R$ 90.05 sem juros",
+    "link": "https://www.mercadolivre.com.br/exemplo-1"
+  },
+  {
+    "title": "Notebook Lenovo IdeaPad 3 Ryzen 5",
+    "price": 1422.6,
+    "old_price": 1616.59,
+    "discount": 12.0,
+    "installment": "em 10x R$ 142.26 sem juros",
+    "link": "https://www.mercadolivre.com.br/exemplo-8"
+  },
+  {
+    "title": "SSD SATA Crucial BX500 480GB",
+    "price": 880.7,
+    "old_price": 1000.8,
+    "discount": 12.0,
+    "installment": "em 10x R$ 88.07 sem juros",
+    "link": "https://www.mercadolivre.com.br/exemplo-9"
+  },
+  {
+    "title": "Monitor Gamer LG UltraGear 24 144Hz",
+    "price": 2172.36,
+    "old_price": 2172.36,
+    "discount": 0.0,
+    "installment": "em 10x R$ 217.24 sem juros",
+    "link": "https://www.mercadolivre.com.br/exemplo-3"
+  },
+  {
+    "title": "Placa de Vídeo RTX 4060 Dual 8GB",
+    "price": 2551.31,
+    "old_price": 2551.31,
+    "discount": 0.0,
+    "installment": "em 10x R$ 255.13 sem juros",
+    "link": "https://www.mercadolivre.com.br/exemplo-11"
+  },
+  {
+    "title": "Cadeira Gamer ThunderX3 TGC12",
+    "price": 642.83,
+    "old_price": 642.83,
+    "discount": 0.0,
+    "installment": "em 10x R$ 64.28 sem juros",
+    "link": "https://www.mercadolivre.com.br/exemplo-12"
+  }
+]
