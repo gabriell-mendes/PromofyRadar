@@ -1,4 +1,5 @@
 requests
+bcrypt>=4.2,<6
 fastapi
 uvicorn[standard]
 jinja2

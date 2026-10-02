@@ -1,0 +1,7 @@
+# Dependências do PAINEL ONLINE (o que roda no VPS). Sem Playwright, sem navegador,
+# sem requests: o servidor só recebe, guarda, deduplica e exibe.
+# Versões iguais às validadas nos testes (ver requirements-lock.txt).
+# Instalar no servidor:  venv/bin/pip install -r requirements-painel.txt
+fastapi==0.141.1
+uvicorn[standard]==0.53.0
+bcrypt==5.0.0

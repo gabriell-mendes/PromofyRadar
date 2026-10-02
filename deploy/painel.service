@@ -1,0 +1,34 @@
+# Serviço systemd do painel online. Copiar para /etc/systemd/system/painel.service
+# (passo a passo em docs/deploy-vps.md). Ajuste só se mudar os caminhos.
+#
+# O painel escuta SÓ em 127.0.0.1:8000: quem recebe a internet é o Caddy (HTTPS) e repassa para cá.
+# O código fica em /opt/grupo-de-ofertas, dono "deploy" (somente leitura para o serviço).
+# O banco fica em /var/lib/painel, o único lugar onde o serviço pode gravar.
+
+[Unit]
+Description=TechDrop Painel Online (FastAPI)
+After=network.target
+
+[Service]
+Type=simple
+User=painel
+Group=painel
+WorkingDirectory=/opt/grupo-de-ofertas
+Environment=PAINEL_DB=/var/lib/painel/painel.db
+Environment=PYTHONUNBUFFERED=1
+# Um processo só (--workers 1): o limite de tentativas de login vive na memória do processo.
+ExecStart=/opt/grupo-de-ofertas/venv/bin/uvicorn painel_online.app:app --host 127.0.0.1 --port 8000 --workers 1 --proxy-headers --forwarded-allow-ips=127.0.0.1
+Restart=on-failure
+RestartSec=3
+
+# Cria /var/lib/painel (dono painel) e o libera para escrita; o resto do disco fica só leitura.
+StateDirectory=painel
+StateDirectoryMode=0750
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

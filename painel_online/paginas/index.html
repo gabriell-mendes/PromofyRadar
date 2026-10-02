@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="pt-BR" class="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TechDrop Painel Online</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = { darkMode: 'class', theme: { extend: { colors: { bg: '#0b0f17', panel: '#111827', card: '#141b2b', line: '#1f2937' } } } };
+</script>
+</head>
+<body class="bg-bg text-slate-200 min-h-screen font-sans p-4 md:p-6">
+<main class="max-w-6xl mx-auto">
+
+  <header class="flex flex-wrap items-center justify-between gap-3 mb-5">
+    <div>
+      <h1 class="text-xl font-semibold text-white">Tech<span class="text-emerald-400">Drop</span> Painel Online</h1>
+      <p id="info" class="text-xs text-slate-500 mt-0.5">Carregando...</p>
+    </div>
+    <nav id="menu" class="flex items-center gap-4"></nav>
+  </header>
+
+  <div id="abas" class="flex gap-2 mb-5"></div>
+  <div id="grid" class="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3"></div>
+</main>
+
+<script src="/static/comum.js"></script>
+<script>
+let status = 'ativas';
+
+function renderAbas() {
+  const box = $('abas'); box.replaceChildren();
+  [['ativas', 'Ativas'], ['descartadas', 'Descartadas']].forEach(([id, nome]) => {
+    const b = el('button', 'px-4 py-2 rounded-full text-sm border ' + (status === id ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-panel border-line text-slate-300'), nome);
+    b.onclick = () => { status = id; carregar(); };
+    box.appendChild(b);
+  });
+}
+
+function card(o) {
+  const c = el('div', 'bg-card border border-line rounded-xl overflow-hidden flex flex-col');
+  if (urlSegura(o.imagem)) {
+    const img = el('img', 'h-40 w-full object-contain bg-white/5 p-3'); img.src = o.imagem; img.loading = 'lazy'; img.referrerPolicy = 'no-referrer'; c.appendChild(img);
+  }
+  const corpo = el('div', 'p-4 flex flex-col flex-1'); c.appendChild(corpo);
+  const t = el(urlSegura(o.url) ? 'a' : 'span', 'text-sm font-medium text-slate-100 hover:text-emerald-400', o.titulo);
+  if (urlSegura(o.url)) { t.href = o.url; t.target = '_blank'; t.rel = 'noopener noreferrer'; }
+  corpo.appendChild(t);
+
+  const linhaPreco = el('div', 'mt-3 flex items-baseline gap-2');
+  linhaPreco.appendChild(el('span', 'text-xl font-bold text-white', brl(o.preco)));
+  if (o.preco_original && o.preco_original > o.preco) linhaPreco.appendChild(el('span', 'text-sm text-slate-500 line-through', brl(o.preco_original)));
+  if (o.desconto) linhaPreco.appendChild(el('span', 'text-xs font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300', '-' + Math.round(o.desconto) + '%'));
+  corpo.appendChild(linhaPreco);
+
+  corpo.appendChild(el('p', 'text-xs text-slate-400 mt-2', o.deal_score == null ? 'Sem Deal Score' : 'Deal Score ' + o.deal_score + (o.deal_confianca ? ' (confiança ' + o.deal_confianca + ')' : '')));
+  corpo.appendChild(el('p', 'text-[11px] text-slate-500 mt-1', 'Enviado por ' + o.enviado_por + ' · ' + o.n_precos + ' preço(s) no histórico'));
+
+  const acao = el('button', 'mt-4 px-3 py-2 text-sm rounded-lg bg-bg border border-line hover:border-slate-500', o.descartada ? 'Restaurar' : 'Descartar');
+  acao.onclick = async () => {
+    try { await api(o.descartada ? '/api/restaurar' : '/api/descartar', { ids: [o.id] }); carregar(); }
+    catch (e) { $('info').textContent = e.message; }
+  };
+  corpo.appendChild(acao);
+  return c;
+}
+
+async function carregar() {
+  renderAbas();
+  try {
+    const j = await api('/api/ofertas?status=' + status);
+    $('info').textContent = j.total + ' oferta(s) ' + status;
+    $('grid').replaceChildren(...j.ofertas.map(card));
+  } catch (e) { $('info').textContent = e.message; }
+}
+
+cabecalho('ofertas').then(carregar);
+</script>
+</body>
+</html>

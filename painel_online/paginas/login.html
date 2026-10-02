@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="pt-BR" class="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Entrar | TechDrop Painel Online</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = { darkMode: 'class', theme: { extend: { colors: { bg: '#0b0f17', panel: '#111827', card: '#141b2b', line: '#1f2937' } } } };
+</script>
+</head>
+<body class="bg-bg text-slate-200 min-h-screen font-sans flex items-center justify-center p-4">
+<form id="form" class="w-full max-w-sm bg-panel border border-line rounded-2xl p-6 space-y-4">
+  <h1 class="text-xl font-semibold text-white">Tech<span class="text-emerald-400">Drop</span> Painel Online</h1>
+  <label class="block text-sm">
+    <span class="text-slate-400">Usuário</span>
+    <input id="nome" autocomplete="username" required class="mt-1 w-full bg-bg border border-line rounded-lg px-3 py-2 outline-none focus:border-emerald-500">
+  </label>
+  <label class="block text-sm">
+    <span class="text-slate-400">Senha</span>
+    <input id="senha" type="password" autocomplete="current-password" required class="mt-1 w-full bg-bg border border-line rounded-lg px-3 py-2 outline-none focus:border-emerald-500">
+  </label>
+  <p id="erro" class="hidden text-sm text-red-300"></p>
+  <button class="w-full px-4 py-2.5 text-sm font-medium rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white">Entrar</button>
+</form>
+
+<script src="/static/comum.js"></script>
+<script>
+$('form').onsubmit = async (e) => {
+  e.preventDefault();
+  $('erro').classList.add('hidden');
+  try {
+    await api('/api/login', { nome: $('nome').value.trim(), senha: $('senha').value });
+    location.href = '/';
+  } catch (err) {
+    $('senha').value = '';
+    $('erro').textContent = err.message;
+    $('erro').classList.remove('hidden');
+  }
+};
+</script>
+</body>
+</html>

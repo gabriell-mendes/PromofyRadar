@@ -1,0 +1,21 @@
+# Caddy: recebe a internet, cuida do certificado HTTPS (automático) e repassa ao painel.
+# Copiar para /etc/caddy/Caddyfile, trocando painel.SEUDOMINIO.com pelo seu domínio
+# (docs/deploy-vps.md). O domínio precisa ter o registro A apontando para o IP do VPS
+# e as portas 80 e 443 abertas, senão o Caddy não consegue emitir o certificado.
+
+painel.SEUDOMINIO.com {
+	encode zstd gzip
+
+	# Corpo máximo de 1 MB, igual ao limite do próprio painel (acima disso: erro 413).
+	request_body {
+		max_size 1MB
+	}
+
+	header {
+		# Diz ao navegador para usar sempre HTTPS neste domínio.
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+
+	reverse_proxy 127.0.0.1:8000
+}

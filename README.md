@@ -66,6 +66,13 @@ CAPTCHA, sem mascarar automação, sem IP rotation) — se uma página de
 verificação/bloqueio for detectada, a coleta para e reporta erro, não
 tenta contornar.
 
+## Painel online compartilhado (em construção)
+
+Cada pessoa coleta no próprio PC e envia as ofertas aprovadas para um painel
+online único (pasta `painel_online/`, FastAPI + SQLite, sem scraper no
+servidor). Guia completo, etapas e glossário em
+[`docs/compartilhamento-de-dados.md`](docs/compartilhamento-de-dados.md).
+
 ## Como rodar
 
 ### 1. Instalar dependências

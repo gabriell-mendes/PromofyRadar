@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="pt-BR" class="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Meus tokens | TechDrop Painel Online</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = { darkMode: 'class', theme: { extend: { colors: { bg: '#0b0f17', panel: '#111827', card: '#141b2b', line: '#1f2937' } } } };
+</script>
+</head>
+<body class="bg-bg text-slate-200 min-h-screen font-sans p-4 md:p-6">
+<main class="max-w-3xl mx-auto">
+
+  <header class="flex flex-wrap items-center justify-between gap-3 mb-6">
+    <h1 class="text-xl font-semibold text-white">Tech<span class="text-emerald-400">Drop</span> Painel Online</h1>
+    <nav id="menu" class="flex items-center gap-4"></nav>
+  </header>
+
+  <h2 class="text-lg font-semibold text-white">Meus tokens de API</h2>
+  <p class="text-sm text-slate-400 mt-1 mb-5">O token identifica o <b>seu PC</b> ao enviar ofertas. Gere um por computador, copie na hora (ele aparece uma única vez) e guarde no <code>.env</code> do PC como <code>PAINEL_TOKEN</code>. Se um token vazar, revogue aqui.</p>
+
+  <form id="form" class="flex flex-wrap gap-2 mb-4">
+    <input id="rotulo" maxlength="60" placeholder="Nome do PC (ex: PC do Gabriel)" class="flex-1 min-w-48 bg-panel border border-line rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-500">
+    <button class="px-4 py-2 text-sm rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white">Gerar token</button>
+  </form>
+
+  <div id="novo" class="hidden mb-6 p-4 rounded-xl bg-amber-500/10 border border-amber-500/40">
+    <p class="text-sm text-amber-200 mb-2">Copie agora. Este token não aparece de novo.</p>
+    <div class="flex gap-2">
+      <input id="novoToken" readonly class="flex-1 bg-bg border border-line rounded-lg px-3 py-2 text-sm font-mono">
+      <button id="copiar" type="button" class="px-3 py-2 text-sm rounded-lg bg-bg border border-line hover:border-slate-500">Copiar</button>
+    </div>
+  </div>
+
+  <p id="aviso" class="text-sm text-red-300 mb-3"></p>
+  <div id="lista" class="space-y-2"></div>
+</main>
+
+<script src="/static/comum.js"></script>
+<script>
+const fmt = (iso) => new Date(iso).toLocaleString('pt-BR');
+
+function linha(t) {
+  const ativo = !t.revogado_em;
+  const l = el('div', 'flex items-center justify-between gap-3 bg-panel border border-line rounded-lg px-4 py-3' + (ativo ? '' : ' opacity-60'));
+  const info = el('div');
+  info.appendChild(el('p', 'text-sm text-slate-100', t.rotulo || '(sem nome)'));
+  info.appendChild(el('p', 'text-xs text-slate-500', 'Criado em ' + fmt(t.criado_em) + (ativo ? '' : ' · revogado em ' + fmt(t.revogado_em))));
+  l.appendChild(info);
+  if (ativo) {
+    const b = el('button', 'px-3 py-1.5 text-sm rounded-lg bg-bg border border-red-500/50 text-red-300 hover:bg-red-500/10', 'Revogar');
+    b.onclick = async () => {
+      if (!confirm('Revogar este token? O PC que o usa deixa de conseguir enviar.')) return;
+      try { await api('/api/tokens/' + t.id + '/revogar', {}); carregar(); } catch (e) { $('aviso').textContent = e.message; }
+    };
+    l.appendChild(b);
+  } else {
+    l.appendChild(el('span', 'text-xs text-slate-500', 'REVOGADO'));
+  }
+  return l;
+}
+
+async function carregar() {
+  $('aviso').textContent = '';
+  try {
+    const j = await api('/api/tokens');
+    $('lista').replaceChildren(...j.tokens.map(linha));
+    if (!j.tokens.length) $('lista').appendChild(el('p', 'text-sm text-slate-500', 'Você ainda não tem tokens.'));
+  } catch (e) { $('aviso').textContent = e.message; }
+}
+
+$('form').onsubmit = async (e) => {
+  e.preventDefault();
+  try {
+    const j = await api('/api/tokens', { rotulo: $('rotulo').value.trim() || null });
+    $('novoToken').value = j.token;
+    $('novo').classList.remove('hidden');
+    $('rotulo').value = '';
+    carregar();
+  } catch (err) { $('aviso').textContent = err.message; }
+};
+$('copiar').onclick = async () => {
+  try { await navigator.clipboard.writeText($('novoToken').value); $('copiar').textContent = 'Copiado'; } catch { $('novoToken').select(); }
+};
+
+cabecalho('tokens').then(carregar);
+</script>
+</body>
+</html>

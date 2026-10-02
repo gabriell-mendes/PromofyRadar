@@ -1,0 +1,5 @@
+# Backup diário do banco do painel online, às 03:15, como usuário "painel".
+# Copiar para /etc/cron.d/painel (dono root, permissão 644). Formato: minuto hora dia mês dia-semana usuário comando.
+# Guarda os 14 backups mais recentes em /var/lib/painel/backups.
+PAINEL_DB=/var/lib/painel/painel.db
+15 3 * * * painel cd /opt/grupo-de-ofertas && /opt/grupo-de-ofertas/venv/bin/python -m painel_online.backup >> /var/lib/painel/backup.log 2>&1
