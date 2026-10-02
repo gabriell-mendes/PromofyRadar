@@ -4,9 +4,10 @@ const CHAVE_LS = 'ofertas_enviadas_v1';
 let offers = [];                 // lista vinda do JSON
 let descartados = [];            // vindos do servidor (data/descartados.json), com discarded_at
 let diasDescarte = 7;            // quantos dias até apagar de vez (o servidor confirma)
-let enviados = lerEnviados();    // { link: dataISO }
+let enviados = lerEnviados();    // { link: dataISO }  ("marcar como enviado": mensagem publicada à mão)
+let painel = { configurado: false, url: null };  // envio ao painel online (PAINEL_URL no .env do servidor)
 const selecionados = new Set();  // links marcados
-const f = { status: 'todos', min: 0, busca: '', ordem: 'disc' };
+const f = { status: 'todos', cat: 'todas', min: 0, minScore: 0, busca: '', ordem: 'score' };
 let previewKey = null;
 
 /* ============ UTIL ============ */
@@ -24,12 +25,31 @@ const ehEnviado = (o) => !!enviados[o.link];
 // Ofertas da lista que NÃO foram descartadas (as descartadas ficam só na aba Descartados)
 const ativos = () => { const fora = new Set(descartados.map((d) => d.link)); return offers.filter((o) => !fora.has(o.link)); };
 
-function toast(msg) {
+/* ============ DEAL SCORE ============ */
+const FAIXAS_SCORE = [[75, 'Ótima', 'bg-emerald-500 text-white'], [50, 'Boa', 'bg-sky-500/30 text-sky-200'],
+  [25, 'Regular', 'bg-amber-500/25 text-amber-200'], [0, 'Fraca', 'bg-slate-600/40 text-slate-300']];
+const FLAGS_DEAL = { desconto_inflado: 'Desconto inflado', menor_preco_recente: 'Menor preço recente', preco_invalido: 'Preço inválido' };
+const temScore = (o) => o.deal_score !== null && o.deal_score !== undefined;
+function faixaScore(s) { return FAIXAS_SCORE.find(([min]) => s >= min) || FAIXAS_SCORE[FAIXAS_SCORE.length - 1]; }
+
+function blocoScore(o) {
+  if (!('deal_score' in o)) return '';   // oferta antiga, coletada antes do Deal Score
+  const motivos = Array.isArray(o.deal_motivos) ? o.deal_motivos : [];
+  const flags = (o.deal_flags || []).map((x) => `<span class="text-[10px] px-2 py-0.5 rounded ${x === 'desconto_inflado' || x === 'preco_invalido' ? 'bg-red-500/20 text-red-300' : 'bg-emerald-500/20 text-emerald-300'}">${esc(FLAGS_DEAL[x] || x)}</span>`).join('');
+  const selo = temScore(o)
+    ? `<span class="text-xs font-bold px-2 py-1 rounded ${faixaScore(o.deal_score)[2]}" title="Deal Score de 0 a 100">Deal ${o.deal_score} · ${faixaScore(o.deal_score)[1]}</span>`
+    : `<span class="text-xs font-bold px-2 py-1 rounded bg-slate-700 text-slate-300">Sem nota</span>`;
+  const conf = o.deal_confianca === 'alta' ? 'confiança alta' : o.deal_confianca === 'baixa' ? 'confiança baixa' : '';
+  return `<div class="mt-2 flex flex-wrap items-center gap-2">${selo}${conf ? `<span class="text-[10px] text-slate-500">${conf}</span>` : ''}${flags}</div>
+      ${motivos.length ? `<p class="text-[11px] text-slate-400 mt-1 clamp2" title="${esc(motivos.join(' | '))}">${esc(motivos[0])}</p>` : ''}`;
+}
+
+function toast(msg, ms = 4000) {
   const el = $('toast');
   el.textContent = msg;
   el.classList.remove('hidden');
   clearTimeout(toast.t);
-  toast.t = setTimeout(() => el.classList.add('hidden'), 4000);
+  toast.t = setTimeout(() => el.classList.add('hidden'), ms);
 }
 
 async function api(url, body) {
@@ -37,7 +57,11 @@ async function api(url, body) {
   try {
     r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-TechDrop': '1' }, body: JSON.stringify(body) });
   } catch { throw new Error('Servidor do TechDrop não encontrado. Abra pelo iniciar.bat'); }
-  if (!r.ok) throw new Error(`Erro ${r.status}`);
+  if (!r.ok) {
+    let detalhe = '';
+    try { const j = await r.json(); if (typeof j.detail === 'string') detalhe = j.detail; } catch {}
+    throw new Error(detalhe || `Erro ${r.status}`);   // o servidor já explica o problema em português
+  }
   return r.json();
 }
 
@@ -92,9 +116,12 @@ function visiveis() {
   const emDesc = f.status === 'descartado';
   let list = (emDesc ? descartados : ativos()).filter((o) =>
     (emDesc || f.status === 'todos' || (f.status === 'enviado') === ehEnviado(o)) &&
+    (f.cat === 'todas' || categoriaDe(o) === f.cat) &&
     (o.discount || 0) >= f.min &&
+    (f.minScore === 0 || (temScore(o) && o.deal_score >= f.minScore)) &&
     (!q || o.title.toLowerCase().includes(q))
   );
+  if (f.ordem === 'score') list.sort((a, b) => (temScore(b) - temScore(a)) || ((b.deal_score || 0) - (a.deal_score || 0)) || (b.discount - a.discount));
   if (f.ordem === 'disc') list.sort((a, b) => b.discount - a.discount);
   if (f.ordem === 'asc') list.sort((a, b) => a.price - b.price);
   if (f.ordem === 'desc') list.sort((a, b) => b.price - a.price);
@@ -109,6 +136,17 @@ function render() {
   const cont = { todos: base.length, pendente: base.length - nEnv, enviado: nEnv, descartado: descartados.length };
   const abasS = [['todos', 'Todos'], ['pendente', 'Pendentes'], ['enviado', 'Enviados'], ['descartado', 'Descartados']];
   $('tabsStatus').innerHTML = abasS.map(([id, nome]) => chip(id, `${nome} (${cont[id]})`, f.status === id, 'status')).join('');
+
+  // chips de categoria: só as que têm produtos, com contagem (respeita a aba de status)
+  const baseCat = f.status === 'descartado' ? descartados
+    : base.filter((o) => f.status === 'todos' || (f.status === 'enviado') === ehEnviado(o));
+  const porCat = {};
+  baseCat.forEach((o) => { const c = categoriaDe(o); porCat[c] = (porCat[c] || 0) + 1; });
+  if (f.cat !== 'todas' && !porCat[f.cat]) f.cat = 'todas';   // categoria esvaziou: volta para Todas
+  // mesma ordem da lista do Mercado Livre; só as categorias que têm produtos
+  const ordemCat = [...CATEGORIAS_PAINEL.filter((c) => porCat[c]), ...(porCat[CATEGORIA_PADRAO] ? [CATEGORIA_PADRAO] : [])];
+  $('listaCat').innerHTML = [['todas', 'Todas', baseCat.length], ...ordemCat.map((c) => [c, c, porCat[c]])]
+    .map(([id, nome, n]) => itemCat(id, nome, n, f.cat === id)).join('');
 
   // cards
   const lista = visiveis();
@@ -126,6 +164,10 @@ function render() {
   $('loteN').textContent = selecionados.size;
   $('btnLoteEnviar').classList.toggle('hidden', emDesc);
   $('btnLoteDescartar').classList.toggle('hidden', emDesc);
+  $('btnLotePainel').classList.toggle('hidden', emDesc);
+  const pendentesPainel = base.filter((o) => !o.teste && !o.enviado_painel_em).length;
+  $('btnPainel').textContent = pendentesPainel ? `Enviar ao painel (${pendentesPainel})` : 'Enviar ao painel';
+  $('btnPainel').disabled = pendentesPainel === 0;
   $('btnLoteRestaurar').classList.toggle('hidden', !emDesc);
   $('btnLoteExcluir').classList.toggle('hidden', !emDesc);
   $('btnEsvaziar').classList.toggle('hidden', !emDesc || descartados.length === 0);
@@ -133,6 +175,11 @@ function render() {
 
 function chip(id, texto, ativo, tipo) {
   return `<button data-${tipo}="${id}" class="px-4 py-2 rounded-full text-sm border transition ${ativo ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-panel border-line text-slate-300 hover:border-slate-500'}">${texto}</button>`;
+}
+
+// Item da lista lateral de categorias (estilo Mercado Livre: nome + contagem em cinza)
+function itemCat(id, nome, n, ativo) {
+  return `<button data-cat="${esc(id)}" class="block w-full text-left py-1 text-sm ${ativo ? 'text-emerald-400 font-semibold' : 'text-slate-300 hover:text-white'}">${esc(nome)} <span class="text-slate-500 font-normal">(${n})</span></button>`;
 }
 
 function card(o) {
@@ -148,6 +195,9 @@ function card(o) {
       <input type="checkbox" data-sel="${esc(o.link)}" ${sel ? 'checked' : ''} class="absolute top-3 left-3">
       <span class="absolute top-3 right-3 text-[10px] font-bold tracking-wide px-2 py-1 rounded ${env ? 'bg-sky-500/20 text-sky-300' : 'bg-amber-500/20 text-amber-300'}">${env ? 'ENVIADO' : 'PENDENTE'}</span>
       ${temDesc ? `<span class="absolute bottom-3 left-3 text-xs font-bold px-2 py-1 rounded bg-emerald-500 text-white">-${Math.round(o.discount)}%</span>` : ''}
+      <span class="absolute bottom-3 right-3 text-[10px] px-2 py-1 rounded bg-black/60 text-slate-200">${esc(categoriaDe(o))}</span>
+      ${o.teste ? '<span class="absolute top-10 right-3 text-[10px] font-bold px-2 py-1 rounded bg-fuchsia-500/30 text-fuchsia-200">TESTE</span>' : ''}
+      ${o.enviado_painel_em ? '<span class="absolute top-10 left-3 text-[10px] font-bold tracking-wide px-2 py-1 rounded bg-sky-500/20 text-sky-300" title="Já enviada ao painel online">NO PAINEL</span>' : ''}
       ${img}
     </div>
     <div class="p-4 flex flex-col flex-1">
@@ -156,6 +206,7 @@ function card(o) {
         <span class="text-xl font-bold text-white">${brl(o.price)}</span>
         ${temDesc ? `<span class="text-sm text-slate-500 line-through">${brl(o.old_price)}</span>` : ''}
       </div>
+      ${blocoScore(o)}
       <p class="text-xs text-slate-400 mt-1 clamp2">${esc(o.installment)}</p>
       <div class="mt-auto pt-4 flex gap-2">
         <button data-prev="${esc(o.link)}" class="flex-1 px-3 py-2 text-sm rounded-lg ${env ? 'bg-bg border border-line hover:border-slate-500' : 'bg-emerald-600 hover:bg-emerald-500 text-white'}">${env ? 'Ver preview' : 'Preview &amp; Enviar'}</button>
@@ -237,8 +288,11 @@ async function restaurar(links) {
   } catch (e) { toast(e.message); }
 }
 
-function confirmar(texto) {
+function confirmar(texto, { titulo = 'Apagar permanentemente?', botao = 'Apagar de vez', perigo = true } = {}) {
   return new Promise((resolve) => {
+    $('confirmTitulo').textContent = titulo;
+    $('confirmSim').textContent = botao;
+    $('confirmSim').className = 'px-3 py-2 text-sm rounded-lg text-white ' + (perigo ? 'bg-red-600 hover:bg-red-500' : 'bg-emerald-600 hover:bg-emerald-500');
     $('confirmTxt').textContent = texto;
     $('confirmModal').classList.remove('hidden');
     const fim = (v) => { $('confirmModal').classList.add('hidden'); $('confirmSim').onclick = $('confirmNao').onclick = null; resolve(v); };
@@ -258,6 +312,42 @@ async function excluirDefinitivo(links, texto) {
   } catch (e) { toast(e.message); }
 }
 
+/* Envio ao painel online. `links` = só essas; null = todas as ainda não enviadas. */
+async function enviarAoPainel(links) {
+  if (!painel.configurado) {
+    toast('Envio não configurado. Preencha PAINEL_URL e PAINEL_TOKEN no .env e reinicie o painel.', 8000);
+    return;
+  }
+  const alvo = ativos().filter((o) => !o.teste && (links ? links.includes(o.link) : !o.enviado_painel_em));
+  const testes = links ? ativos().filter((o) => o.teste && links.includes(o.link)).length : 0;
+  if (!alvo.length) { toast('Nenhuma oferta para enviar' + (testes ? ' (ofertas de teste não são enviadas).' : '.')); return; }
+  const jaForam = alvo.filter((o) => o.enviado_painel_em).length;
+  const texto = `Enviar ${alvo.length} oferta(s) para ${new URL(painel.url).host}?` +
+    (jaForam ? ` ${jaForam} já foram enviadas antes: serão atualizadas.` : '') +
+    (testes ? ` ${testes} de teste ficam de fora.` : '');
+  if (!(await confirmar(texto, { titulo: 'Enviar ao painel online?', botao: 'Enviar', perigo: false }))) return;
+
+  $('btnPainel').disabled = $('btnLotePainel').disabled = true;
+  toast('Enviando ao painel...', 60000);
+  try {
+    const r = await api('/api/painel/enviar', links ? { links: alvo.map((o) => o.link) } : {});
+    let msg = `Enviado: ${r.criadas} nova(s), ${r.atualizadas} atualizada(s)`;
+    if (r.ignoradas) msg += `, ${r.ignoradas} recusada(s) pelo painel (ex.: ${r.detalhes_ignoradas[0].titulo}: ${r.detalhes_ignoradas[0].motivo})`;
+    await carregar();
+    toast(msg + '.', r.ignoradas ? 10000 : 5000);
+  } catch (e) {
+    await carregar();   // pode ter chegado parte das ofertas antes do erro
+    toast(e.message, 10000);
+  } finally {
+    $('btnLotePainel').disabled = false;
+    render();
+  }
+}
+
+async function carregarPainelStatus() {
+  try { painel = await (await fetch('/api/painel/status')).json(); } catch { painel = { configurado: false, url: null }; }
+}
+
 function abrirPreview(link) {
   const o = ativos().find((x) => x.link === link);
   if (!o) return;
@@ -270,10 +360,11 @@ function fecharPreview() { $('modal').classList.add('hidden'); previewKey = null
 
 /* ============ EVENTOS ============ */
 document.addEventListener('click', (e) => {
-  const t = e.target.closest('[data-status],[data-prev],[data-undo],[data-view],[data-discard],[data-restore],[data-purge]');
+  const t = e.target.closest('[data-status],[data-cat],[data-prev],[data-undo],[data-view],[data-discard],[data-restore],[data-purge]');
   if (!t) return;
   if (t.dataset.view) setView(t.dataset.view);
   else if (t.dataset.status) { f.status = t.dataset.status; selecionados.clear(); render(); }
+  else if (t.dataset.cat) { f.cat = t.dataset.cat; selecionados.clear(); render(); }
   else if (t.dataset.discard) descartar([t.dataset.discard]);
   else if (t.dataset.restore) restaurar([t.dataset.restore]);
   else if (t.dataset.purge) excluirDefinitivo([t.dataset.purge], 'Apagar este produto de vez? Não dá para desfazer.');
@@ -295,11 +386,14 @@ $('chkAll').addEventListener('change', (e) => {
 });
 
 $('minRange').addEventListener('input', (e) => { f.min = Number(e.target.value); $('minLabel').textContent = f.min + '%'; render(); });
+$('minScoreRange').addEventListener('input', (e) => { f.minScore = Number(e.target.value); $('minScoreLabel').textContent = f.minScore; render(); });
 $('busca').addEventListener('input', (e) => { f.busca = e.target.value; render(); });
 $('ordem').addEventListener('change', (e) => { f.ordem = e.target.value; render(); });
 
 $('btnLoteEnviar').addEventListener('click', () => marcarEnviado([...selecionados]));
 $('btnLoteDescartar').addEventListener('click', () => descartar([...selecionados]));
+$('btnLotePainel').addEventListener('click', () => enviarAoPainel([...selecionados]));
+$('btnPainel').addEventListener('click', () => enviarAoPainel(null));
 $('btnLoteRestaurar').addEventListener('click', () => restaurar([...selecionados]));
 $('btnLoteExcluir').addEventListener('click', () => excluirDefinitivo([...selecionados], `Apagar ${selecionados.size} produto(s) de vez? Não dá para desfazer.`));
 $('btnEsvaziar').addEventListener('click', () => excluirDefinitivo(descartados.map((d) => d.link), `Apagar TODOS os ${descartados.length} produtos descartados de vez? Não dá para desfazer.`));
@@ -319,9 +413,9 @@ $('mCopiar').addEventListener('click', async () => {
 /* ============ CARREGAR DADOS ============ */
 function aplicarDados(json, fonte) {
   const arr = Array.isArray(json) ? json : (json.items || json.offers || []);
-  offers = arr.filter((o) => o && o.link && o.title).map((o) => ({ ...o, price: Number(o.price) || 0, old_price: Number(o.old_price) || 0, discount: Number(o.discount) || 0 }));
+  offers = arr.filter((o) => o && o.link && o.title).map((o) => ({ ...o, price: Number(o.price) || 0, old_price: Number(o.old_price) || 0, discount: Number(o.discount) || 0, ...('deal_score' in o ? { deal_score: o.deal_score === null ? null : Number(o.deal_score) } : {}) }));
   selecionados.clear();
-  $('fonte').textContent = `${offers.length} ofertas carregadas de ${fonte}`;
+  $('fonte').textContent = `${offers.length} ofertas carregadas`;
   render();
 }
 
@@ -363,3 +457,4 @@ const hash = location.hash.replace('#', '');
 setView(Object.values(VIEWS).includes(hash) ? hash : 'produtos');
 carregar();
 carregarDescartados();
+carregarPainelStatus();

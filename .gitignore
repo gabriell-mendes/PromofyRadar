@@ -24,3 +24,7 @@ debug_*.png
 .cache/
 node_modules/
 dist/
+
+# Bancos de dados locais (historico de precos, etc)
+data/
+*.db

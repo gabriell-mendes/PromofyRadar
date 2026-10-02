@@ -11,6 +11,8 @@ from typing import List, Dict
 from playwright.async_api import async_playwright, Page
 import playwright_stealth
 
+from pontuacao import linha_terminal, pontuar_e_ordenar
+
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 
@@ -18,6 +20,9 @@ ITEMS_PER_PAGE = 48  # o ML pagina de 48 em 48 resultados (offset via _Desde_)
 
 
 class SmartOfferScraper:
+    # Seletor dos cards de produto. Subclasses (ex: scraper_ofertas.py) podem trocar.
+    ITEM_SELECTOR = ".ui-search-layout__item, [class*='search-item']"
+
     def __init__(self, min_discount: float = 0.0, debug: bool = False):
         self.min_discount = min_discount
         self.debug = debug
@@ -34,6 +39,9 @@ class SmartOfferScraper:
         if self.debug:
             os.makedirs(self.debug_dir, exist_ok=True)
         self.seen_links = set()  # evita duplicar itens entre páginas
+        # TODOS os itens lidos (mesmo os cortados pelo desconto mínimo): formam o grupo
+        # de comparação do Deal Score e alimentam o histórico de preços
+        self.todos_vistos: List[Dict] = []
 
     async def _human_delay(self, min_s: float = 1.0, max_s: float = 3.0):
         await asyncio.sleep(random.uniform(min_s, max_s))
@@ -126,12 +134,14 @@ class SmartOfferScraper:
 
     
 
+    def _pontuar(self, resultados: List[Dict]) -> List[Dict]:
+        """Calcula o Deal Score de cada oferta e ordena pela nota (ver pontuacao.py)."""
+        return pontuar_e_ordenar(resultados, self.todos_vistos)
+
     async def _extract_items_on_page(self, page: Page) -> List[Dict]:
         """Extrai e filtra os itens visíveis na página atual (sem navegar)."""
         page_results: List[Dict] = []
-        items = await page.query_selector_all(
-            ".ui-search-layout__item, [class*='search-item']"
-        )
+        items = await page.query_selector_all(self.ITEM_SELECTOR)
 
         if not items:
             logger.warning("Nenhum item encontrado nesta página.")
@@ -188,6 +198,7 @@ class SmartOfferScraper:
                 image_url = await self._extract_image(item)
 
                 self.seen_links.add(link)
+                self.todos_vistos.append({"link": link, "price": round(current_price_val, 2)})
 
                 if actual_discount >= self.min_discount:
                     page_results.append(
@@ -289,7 +300,7 @@ class SmartOfferScraper:
                     all_results.extend(page_results)
                     await self._human_delay(1.5, 3)
 
-                all_results.sort(key=lambda x: x["discount"], reverse=True)
+                self._pontuar(all_results)
 
             except Exception as e:
                 logger.error(f"Erro crítico no loop: {e}")
@@ -326,7 +337,7 @@ async def main():
     results = await scraper.scrape_mercadolivre(query, max_pages=max_pages)
 
     print("\n" + "=" * 40)
-    print(f" RESULTADOS ENCONTRADOS (ORDENADOS POR DESCONTO): {len(results)}")
+    print(f" RESULTADOS ENCONTRADOS (ORDENADOS POR DEAL SCORE): {len(results)}")
     print("=" * 40)
 
     if not results:
@@ -335,6 +346,7 @@ async def main():
         for idx, res in enumerate(results, 1):
             print(f"\n{idx}. {res['title']}")
             print(f"   DESCONTO: {res['discount']}%")
+            print(linha_terminal(res))
             print(f"   Preço: R$ {res['price']} (De R$ {res['old_price']})")
             print(f"   Parcelamento: {res['installment']}")
             print(f"   Link: {res['link']}")

@@ -5,6 +5,9 @@ Faz duas coisas:
 2. Executa o scraper (`scraperd.py`) como se fosse no terminal: abre o processo,
    responde as perguntas (produto, desconto, páginas, debug), transmite a saída
    ao vivo para a aba "Scraper" e salva as ofertas em `frontend/data/ofertas.json`.
+3. Envia as ofertas aprovadas ao painel online compartilhado (botão "Enviar ao painel"),
+   usando PAINEL_URL e PAINEL_TOKEN do `.env`. O token fica só aqui no servidor local,
+   nunca vai para o navegador.
 
 O scraper NÃO é importado: ele roda como um processo separado, exatamente como
 `python scraperd.py` no terminal. Assim o painel nunca muda o comportamento dele.
@@ -21,11 +24,17 @@ import threading
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from urllib.parse import urlparse
 
+import requests
 import uvicorn
+from dotenv import dotenv_values
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+
+from categorias_ml import CATEGORIAS, CUSTOM, TECNOLOGIA_SUB, categoria_painel, montar_url
+from ofertas_abas import ABA_CATEGORIA, ABAS, CUSTOM as CUSTOM_ABA, validar_escolha as validar_aba
 
 BASE_DIR = Path(__file__).resolve().parent
 FRONTEND_DIR = BASE_DIR / "frontend"
@@ -34,8 +43,13 @@ OFERTAS_JSON = DATA_DIR / "ofertas.json"
 DESCARTADOS_JSON = DATA_DIR / "descartados.json"
 SAIDA_TEMP = DATA_DIR / "_ultima_busca.json"  # o scraper grava aqui (ver TECHDROP_OUTPUT)
 DIAS_DESCARTE = int(os.environ.get("TECHDROP_DIAS_DESCARTE", "7"))  # descartados somem depois disso
-SCRAPER = BASE_DIR / os.environ.get("TECHDROP_SCRAPER", "scraperd.py")
+SCRAPER = BASE_DIR / os.environ.get("TECHDROP_SCRAPER", "scraperd.py")  # scraper por busca
+SCRAPER_CATEGORIA = BASE_DIR / os.environ.get("TECHDROP_SCRAPER_CATEGORIA", "scraper_categoria.py")
+SCRAPER_OFERTAS = BASE_DIR / os.environ.get("TECHDROP_SCRAPER_OFERTAS", "scraper_ofertas.py")  # abas de Ofertas
 PORTA = int(os.environ.get("TECHDROP_PORT", "5500"))
+ENV_FILE = BASE_DIR / ".env"
+LOTE_PAINEL = 200  # ofertas por pedido ao painel online (o limite dele é 500 ofertas e 1 MB)
+TIMEOUT_PAINEL = 30  # segundos
 
 app = FastAPI(title="TechDrop")
 
@@ -69,6 +83,15 @@ def _agora() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def _ordenar(ofertas) -> list:
+    """Melhor Deal Score primeiro, sem nota por último, desempate pelo desconto."""
+    return sorted(
+        ofertas,
+        key=lambda o: (o.get("deal_score") is not None, o.get("deal_score") or 0, o.get("discount", 0)),
+        reverse=True,
+    )
+
+
 def _purgar_descartados() -> list:
     """Apaga de vez os descartados com mais de DIAS_DESCARTE dias e devolve os que ficaram."""
     with DATA_LOCK:
@@ -99,7 +122,11 @@ def _purga_periodica():
 class Job:
     """Estado da execução atual do scraper (só existe uma por vez)."""
 
-    def __init__(self, respostas: list[str], substituir: bool):
+    def __init__(self, respostas: list[str], substituir: bool, tipo: str = "busca", categoria: str | None = None,
+                 min_score: int = 0):
+        self.min_score = min_score  # só entram no painel ofertas com Deal Score >= isto (0 = todas)
+        self.categoria = categoria  # categoria do painel, quando o scraper já sabe qual é
+        self.tipo = tipo  # "busca" ou "categoria"
         self.respostas = respostas  # respostas automáticas, na ordem dos prompts
         self.substituir = substituir
         self.saida = ""  # tudo que o scraper imprimiu (stdout + stderr)
@@ -159,23 +186,41 @@ def _salvar_resultados(j: Job):
             # Produtos descartados (ainda dentro dos 7 dias) não voltam para a lista
             descartados = {o.get("link") for o in _purgar_descartados()}
             novas = [o for o in coletadas if o.get("link") not in descartados]
-            ignoradas = len(coletadas) - len(novas)
+            ignoradas = len(coletadas) - len(novas)  # já descartadas (antes do filtro de nota)
+            abaixo = 0
+            if j.min_score > 0:  # filtro pela nota (sem nota fica de fora, não dá para provar que é boa)
+                boas = [o for o in novas if o.get("deal_score") is not None and o["deal_score"] >= j.min_score]
+                abaixo = len(novas) - len(boas)
+                novas = boas
+            if j.categoria:  # o scraper sabe a categoria; o resto o painel adivinha pelo título
+                for o in novas:
+                    o["category"] = j.categoria
             atuais = [] if j.substituir else _ler(OFERTAS_JSON)
             por_link = {o["link"]: o for o in atuais if o.get("link")}
             for o in novas:
                 por_link[o["link"]] = o  # a coleta mais recente vence
-            total = sorted(por_link.values(), key=lambda o: o.get("discount", 0), reverse=True)
+            total = _ordenar(por_link.values())
             _gravar(OFERTAS_JSON, total)
-        j.salvo = {"novas": len(novas), "total": len(total), "ignoradas": ignoradas}
+        otimas = sum(1 for o in novas if (o.get("deal_score") or 0) >= 75)
+        j.salvo = {"novas": len(novas), "total": len(total), "ignoradas": ignoradas,
+                   "abaixo_da_nota": abaixo, "otimas": otimas, "min_score": j.min_score}
         extra = f" ({ignoradas} ignoradas por já estarem descartadas)" if ignoradas else ""
-        j.emitir(f"\n[TechDrop] {len(novas)} ofertas desta busca{extra} | {len(total)} na lista de Produtos\n")
+        corte = f" ({abaixo} abaixo do Deal Score mínimo {j.min_score})" if abaixo else ""
+        j.emitir(f"\n[TechDrop] {len(novas)} ofertas desta busca{extra}{corte} | {len(total)} na lista de Produtos\n")
     except Exception as e:  # noqa: BLE001
         j.emitir(f"\n[TechDrop] Não consegui salvar as ofertas: {e}\n")
 
 
 class StartBody(BaseModel):
+    tipo: str = "busca"  # "busca" (scraperd.py), "categoria" ou "ofertas"
+    aba: str = ""  # só no tipo "ofertas"
+    aba_url: str = ""  # só quando aba == "Colar URL"
+    categoria: str = ""  # só no tipo "categoria"
+    subcategoria: str = ""
+    url: str = ""  # só quando categoria == "Colar URL"
     query: str = ""
     min_discount: str = ""
+    min_score: str = ""  # Deal Score mínimo (0 a 100) para entrar na lista de Produtos
     max_pages: str = ""
     debug: bool = False
     substituir: bool = False
@@ -234,7 +279,7 @@ def restaurar(body: LinksBody):
         por_link = {o["link"]: o for o in _ler(OFERTAS_JSON) if o.get("link")}
         for o in voltam:
             por_link[o["link"]] = o
-        total = sorted(por_link.values(), key=lambda o: o.get("discount", 0), reverse=True)
+        total = _ordenar(por_link.values())
         _gravar(OFERTAS_JSON, total)
     return {"restaurados": len(voltam)}
 
@@ -250,9 +295,188 @@ def excluir_descartados(body: LinksBody):
     return {"excluidos": len(descartados) - len(restantes)}
 
 
+# ---------- Envio ao painel online compartilhado ----------
+class EnviarBody(BaseModel):
+    links: list[str] | None = None  # None = todas as que ainda não foram enviadas
+
+
+def _config_painel() -> tuple[str, str]:
+    """(PAINEL_URL, PAINEL_TOKEN). Lê do ambiente e do `.env`, sem copiar o token para
+    os.environ (senão ele iria junto para o processo do scraper)."""
+    arquivo = dotenv_values(ENV_FILE) if ENV_FILE.exists() else {}
+    url = (os.environ.get("PAINEL_URL") or arquivo.get("PAINEL_URL") or "").strip().rstrip("/")
+    token = (os.environ.get("PAINEL_TOKEN") or arquivo.get("PAINEL_TOKEN") or "").strip()
+    return url, token
+
+
+def _validar_url_painel(url: str) -> str | None:
+    """Mensagem de erro, ou None se a URL serve. O token vai em todo envio: por http puro
+    ele passaria aberto pela rede, então só aceitamos http em localhost."""
+    p = urlparse(url)
+    if p.scheme not in ("http", "https") or not p.hostname:
+        return "PAINEL_URL inválida. Use algo como https://painel.seudominio.com"
+    if p.scheme == "http" and p.hostname not in ("localhost", "127.0.0.1", "::1"):
+        return "PAINEL_URL precisa começar com https:// (o token não pode trafegar sem criptografia)."
+    return None
+
+
+def _para_painel(o: dict, coletado_em: str) -> dict:
+    """Formato do scraper local -> contrato OfertaIn do painel online (painel_online/schemas.py)."""
+    return {
+        "loja": "mercadolivre",
+        "url": o.get("link"),
+        "titulo": o.get("title"),
+        "preco": o.get("price"),
+        "preco_original": o.get("old_price") or None,
+        "desconto": o.get("discount"),
+        "parcelamento": o.get("installment"),
+        "imagem": o.get("image"),
+        "categoria": o.get("category"),
+        "deal_score": o.get("deal_score"),
+        "deal_confianca": o.get("deal_confianca"),
+        "deal_motivos": o.get("deal_motivos") or [],
+        "deal_flags": o.get("deal_flags") or [],
+        "coletado_em": coletado_em,
+    }
+
+
+def _erro_painel(status: int) -> tuple[int, str]:
+    """(status HTTP que devolvemos ao painel local, mensagem clara)."""
+    if status == 401:
+        return 401, ("O painel recusou o token (inválido ou revogado). No painel online, vá em Meus tokens, "
+                     "gere um novo e atualize PAINEL_TOKEN no .env.")
+    if status in (301, 302, 303, 307, 308):
+        return 502, "O painel redirecionou o envio. Confira se PAINEL_URL é o endereço final, com https://."
+    if status in (413, 422):
+        return 502, f"O painel recusou o formato ou o tamanho do envio (HTTP {status})."
+    if status >= 500:
+        return 502, f"O painel online está com problema (HTTP {status}). Tente de novo em alguns minutos."
+    return 502, f"O painel recusou o envio (HTTP {status})."
+
+
+def _marcar_enviadas(links: list[str]):
+    """Anota em ofertas.json quais já foram ao painel (tira o aviso de pendente de envio).
+    Uma nova coleta do mesmo produto sobrescreve a oferta e zera a marca: aí vale reenviar."""
+    if not links:
+        return
+    agora = _agora().isoformat(timespec="seconds")
+    alvo = set(links)
+    with DATA_LOCK:
+        atuais = _ler(OFERTAS_JSON)
+        for o in atuais:
+            if o.get("link") in alvo:
+                o["enviado_painel_em"] = agora
+        _gravar(OFERTAS_JSON, atuais)
+
+
+@app.get("/api/painel/status")
+def painel_status():
+    """Diz se o envio está configurado e para onde vai. Nunca devolve o token."""
+    url, token = _config_painel()
+    return {"configurado": bool(url and token), "url": url or None}
+
+
+@app.post("/api/painel/enviar", dependencies=[Depends(somente_painel)])
+def enviar_ao_painel(body: EnviarBody):
+    """Manda ofertas ao painel online. Com `links`, só essas; sem, todas as ainda não enviadas.
+    Reenviar é seguro: o painel não duplica (atualiza e soma uma linha no histórico de preços)."""
+    url, token = _config_painel()
+    if not url or not token:
+        raise HTTPException(status_code=400, detail="Envio não configurado. Preencha PAINEL_URL e PAINEL_TOKEN no .env e reinicie o painel.")
+    erro_url = _validar_url_painel(url)
+    if erro_url:
+        raise HTTPException(status_code=400, detail=erro_url)
+
+    with DATA_LOCK:
+        atuais = _ler(OFERTAS_JSON)
+    if body.links is None:
+        candidatas = [o for o in atuais if o.get("link") and not o.get("enviado_painel_em")]
+    else:
+        pedidos = set(body.links)
+        candidatas = [o for o in atuais if o.get("link") in pedidos]
+
+    # Ofertas de teste (iniciar_teste.bat) nunca vão para o painel de verdade.
+    ofertas = [o for o in candidatas if not o.get("teste")]
+    de_teste = len(candidatas) - len(ofertas)
+    if not ofertas:
+        aviso = " (ofertas de teste não são enviadas)" if de_teste else ""
+        raise HTTPException(status_code=400, detail="Nenhuma oferta para enviar." + aviso)
+
+    coletado_em = _agora().isoformat(timespec="seconds")
+    total = {"criadas": 0, "atualizadas": 0, "ignoradas": 0, "detalhes_ignoradas": [], "de_teste": de_teste}
+    enviadas_ok: list[str] = []
+
+    for ini in range(0, len(ofertas), LOTE_PAINEL):
+        lote = ofertas[ini:ini + LOTE_PAINEL]
+        status_erro, falha = 502, None
+        r = None
+        try:
+            r = requests.post(
+                f"{url}/api/ingest",
+                json={"ofertas": [_para_painel(o, coletado_em) for o in lote]},
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=TIMEOUT_PAINEL,
+                allow_redirects=False,  # nunca reenviar o token para outro endereço
+            )
+            if r.status_code != 200:
+                status_erro, falha = _erro_painel(r.status_code)
+        except requests.exceptions.SSLError:
+            falha = "Falha de certificado HTTPS ao falar com o painel. Confira o PAINEL_URL."
+        except requests.exceptions.Timeout:
+            falha = f"O painel não respondeu em {TIMEOUT_PAINEL}s. Tente de novo."
+        except requests.exceptions.ConnectionError:
+            falha = f"Não consegui conectar em {url}. Confira sua internet e o PAINEL_URL."
+        except requests.exceptions.RequestException as e:
+            falha = f"Erro ao enviar ao painel: {type(e).__name__}."
+        if falha:
+            _marcar_enviadas(enviadas_ok)
+            if enviadas_ok:
+                falha += f" Já chegaram {len(enviadas_ok)} oferta(s) antes do erro; pode reenviar sem duplicar."
+            raise HTTPException(status_code=status_erro, detail=falha)
+
+        res = r.json()
+        total["criadas"] += res["criadas"]
+        total["atualizadas"] += res["atualizadas"]
+        total["ignoradas"] += res["ignoradas"]
+        recusadas = {d["indice"] for d in res["detalhes_ignoradas"]}
+        for d in res["detalhes_ignoradas"]:
+            alvo = lote[d["indice"]] if d["indice"] < len(lote) else {}
+            total["detalhes_ignoradas"].append({"titulo": (alvo.get("title") or "")[:80], "motivo": d["motivo"]})
+        enviadas_ok += [o["link"] for i, o in enumerate(lote) if i not in recusadas]
+
+    _marcar_enviadas(enviadas_ok)
+    return total
+
+
 @app.get("/api/ping")
 def ping():
-    return {"ok": True, "scraper": SCRAPER.name, "scraper_existe": SCRAPER.exists()}
+    return {
+        "ok": True,
+        "scraper": SCRAPER.name,
+        "scraper_existe": SCRAPER.exists(),
+        "categoria_scraper": SCRAPER_CATEGORIA.name,
+        "categoria_existe": SCRAPER_CATEGORIA.exists(),
+        "ofertas_scraper": SCRAPER_OFERTAS.name,
+        "ofertas_existe": SCRAPER_OFERTAS.exists(),
+    }
+
+
+@app.get("/api/abas")
+def abas():
+    """Abas da página de Ofertas para os botões da tela (fonte única: ofertas_abas.py)."""
+    return {"abas": ABAS, "custom": CUSTOM_ABA}
+
+
+@app.get("/api/categorias")
+def categorias():
+    """Categorias para os botões da tela do scraper (fonte única: categorias_ml.py)."""
+    return {
+        "categorias": [
+            {"nome": nome, "subs": list(TECNOLOGIA_SUB) if slug is None else None}
+            for nome, slug in CATEGORIAS.items()
+        ],
+        "custom": CUSTOM,
+    }
 
 
 @app.post("/api/scraper/start", dependencies=[Depends(somente_painel)])
@@ -260,33 +484,72 @@ def start(body: StartBody):
     global job
     if job and job.rodando:
         raise HTTPException(status_code=409, detail="Já existe uma busca rodando")
-    if not SCRAPER.exists():
-        raise HTTPException(status_code=500, detail=f"Scraper não encontrado: {SCRAPER.name}")
-    if not body.manual and not body.query.strip():
-        raise HTTPException(status_code=400, detail="Informe o produto")
+    if body.tipo not in ("busca", "categoria", "ofertas"):
+        raise HTTPException(status_code=400, detail="Tipo de scraper inválido")
+    script = {"busca": SCRAPER, "categoria": SCRAPER_CATEGORIA, "ofertas": SCRAPER_OFERTAS}[body.tipo]
+    if not script.exists():
+        raise HTTPException(status_code=500, detail=f"Scraper não encontrado: {script.name}")
+
+    try:
+        min_score = int(body.min_score.strip() or 0)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Deal Score mínimo deve ser um número de 0 a 100")
+    if not 0 <= min_score <= 100:
+        raise HTTPException(status_code=400, detail="Deal Score mínimo deve ser um número de 0 a 100")
+
+    env_extra = {}
+    if body.tipo == "busca":
+        if not body.manual and not body.query.strip():
+            raise HTTPException(status_code=400, detail="Informe o produto")
+    elif body.tipo == "ofertas":
+        if not body.manual:
+            try:
+                validar_aba(body.aba, body.aba_url)
+            except ValueError as e:
+                raise HTTPException(status_code=400, detail=str(e))
+            env_extra = {"TECHDROP_ABA": body.aba, "TECHDROP_ABA_URL": body.aba_url}
+    elif not body.manual:
+        # Valida a escolha aqui (erro claro no painel) e passa ao scraper por variáveis
+        # de ambiente, assim ele pula o menu numerado do terminal.
+        try:
+            montar_url(body.categoria, body.subcategoria, body.url)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        env_extra = {
+            "TECHDROP_CATEGORIA": body.categoria,
+            "TECHDROP_SUBCATEGORIA": body.subcategoria,
+            "TECHDROP_CATEGORIA_URL": body.url,
+        }
 
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     SAIDA_TEMP.unlink(missing_ok=True)
 
     # Mesma ordem das perguntas do scraper no terminal
-    respostas = [] if body.manual else [
-        body.query.strip(),
-        body.min_discount.strip(),
-        body.max_pages.strip(),
-        "s" if body.debug else "",
-    ]
-    j = Job(respostas, body.substituir)
+    # busca:     produto, desconto, páginas, debug
+    # categoria: desconto, páginas, debug (a categoria já foi escolhida acima)
+    respostas = [body.min_discount.strip(), body.max_pages.strip(), "s" if body.debug else ""]
+    if body.tipo == "busca":
+        respostas.insert(0, body.query.strip())
+    if body.manual:
+        respostas = []
+    categoria_job = None
+    if not body.manual:
+        if body.tipo == "categoria" and body.categoria in CATEGORIAS:
+            categoria_job = categoria_painel(body.categoria, body.subcategoria)
+        elif body.tipo == "ofertas":
+            categoria_job = ABA_CATEGORIA.get(body.aba)
+    j = Job(respostas, body.substituir, body.tipo, categoria_job, min_score)
     env = {**os.environ, "PYTHONUNBUFFERED": "1", "PYTHONIOENCODING": "utf-8",
-           "TECHDROP_OUTPUT": str(SAIDA_TEMP)}
+           "TECHDROP_OUTPUT": str(SAIDA_TEMP), **env_extra}
     j.proc = subprocess.Popen(
-        [sys.executable, "-u", str(SCRAPER)],
+        [sys.executable, "-u", str(script)],
         cwd=str(BASE_DIR),  # igual a rodar o scraper da raiz do projeto (browser_profile etc.)
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         env=env,
     )
-    j.emitir(f"$ python {SCRAPER.name}\n")
+    j.emitir(f"$ python {script.name}\n")
     job = j
     threading.Thread(target=_ler_saida, args=(j,), daemon=True).start()
     return {"ok": True}
@@ -330,6 +593,7 @@ def output(since: int = 0):
         "started": True,
         "exit_code": job.codigo,
         "saved": job.salvo,
+        "tipo": job.tipo,
         "id": int(job.inicio),
     }
 
