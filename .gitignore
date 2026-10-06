@@ -28,3 +28,7 @@ dist/
 # Bancos de dados locais (historico de precos, etc)
 data/
 *.db
+
+# Anotações de desenvolvimento (só no PC do Gabriel)
+docs/Apdzd/
+docs/historico-de-sessoes/
