@@ -1,4 +1,4 @@
-# Caddy: recebe a internet, cuida do certificado HTTPS (automático) e repassa ao painel.
+hv# Caddy: recebe a internet, cuida do certificado HTTPS (automático) e repassa ao painel.
 # Copiar para /etc/caddy/Caddyfile, trocando painel.SEUDOMINIO.com pelo seu domínio
 # (docs/deploy-vps.md). O domínio precisa ter o registro A apontando para o IP do VPS
 # e as portas 80 e 443 abertas, senão o Caddy não consegue emitir o certificado.
