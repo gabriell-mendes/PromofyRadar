@@ -28,3 +28,6 @@ dist/
 # Bancos de dados locais (historico de precos, etc)
 data/
 *.db
+
+# Anotações de desenvolvimento (só no PC do Gabriel)
+docs/historico-de-sessoes/
