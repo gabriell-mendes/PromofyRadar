@@ -12,7 +12,7 @@ si.
 
 O link de afiliado NÃO é gerado aqui (decisão registrada em
 docs/decisao-fonte-de-dados.md): a mensagem sempre usa o link normal do
-produto (`product.url`); o Gabriel gera o link de afiliado manualmente,
+produto (`product.url`); o operador gera o link de afiliado manualmente,
 depois de revisar, fora do código.
 """
 

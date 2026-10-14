@@ -35,7 +35,7 @@ FONTES: dict[str, type[OfferSource]] = {
     "mercadolivre_api": MercadoLivreSource,
 }
 
-# Shopee exige SHOPEE_APP_ID/SHOPEE_APP_SECRET (Gabriel ainda não tem —
+# Shopee exige SHOPEE_APP_ID/SHOPEE_APP_SECRET (ainda não configurado —
 # depende de aprovação como afiliado). Mercado Livre por scraping funciona
 # sem nenhuma credencial, então é o padrão até a Shopee ter credenciais
 # reais configuradas (ver docs/decisao-fonte-de-dados.md).

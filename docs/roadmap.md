@@ -18,7 +18,7 @@ Objetivo: provar o fluxo mínimo ponta a ponta com dados reais.
       reais — Mercado Livre via scraping (`app/sources/mercadolivre_scraper.py`)
       funciona hoje, sem credencial nenhuma
 - [ ] Shopee com credenciais reais — código pronto em `app/sources/shopee.py`,
-      falta só o Gabriel virar afiliado e pedir liberação de API (ação
+      falta só o o dono virar afiliado e pedir liberação de API (ação
       pessoal, não automatizável — ver `docs/decisao-fonte-de-dados.md`)
 - [x] Extrair preço atual + informações básicas (título, preço, link, loja)
 - [x] Normalizar os dados coletados em uma estrutura única (`Product`)

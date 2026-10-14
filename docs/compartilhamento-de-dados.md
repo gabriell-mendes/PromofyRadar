@@ -19,7 +19,7 @@ Este guia explica como várias pessoas coletam ofertas no próprio computador e 
 Cada pessoa roda o scraper no próprio PC (IP e navegador próprios), revisa as ofertas e envia as aprovadas para um painel online único. Todos os administradores veem tudo junto. O servidor online não roda scraper nem navegador: só recebe, guarda, deduplica e exibe.
 
 ```
-PC do Gabriel                     PC da pessoa B
+PC do João                     PC da pessoa B
  scraper + painel local            scraper + painel local
         |                                  |
         |  HTTPS POST /api/ingest          |

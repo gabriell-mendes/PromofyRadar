@@ -1,6 +1,6 @@
 # Grupo de Ofertas
 
-Deal alerts + afiliados. Cada pessoa coleta ofertas do Mercado Livre no próprio PC (scraper com Playwright), revisa no painel local e envia as aprovadas a um painel online compartilhado (FastAPI + SQLite, num VPS, sem scraper). Dono do projeto: Gabriel, que usa o projeto também para aprender. Windows 11, PowerShell.
+Deal alerts + afiliados. Cada pessoa coleta ofertas do Mercado Livre no próprio PC (scraper com Playwright), revisa no painel local e envia as aprovadas a um painel online compartilhado (FastAPI + SQLite, num VPS, sem scraper). O dono do projeto usa o projeto também para aprender. Windows 11, PowerShell.
 
 ## Comandos (da raiz do projeto)
 Use sempre o Python do projeto: `.venv\Scripts\python.exe`. O Python do sistema não tem FastAPI.
@@ -18,7 +18,7 @@ Use sempre o Python do projeto: `.venv\Scripts\python.exe`. O Python do sistema 
 - Mapa completo: `docs/estrutura-do-projeto.md`. Guia para usuários e glossário: `docs/compartilhamento-de-dados.md`
 - Não use como referência: `docs/architecture.md`, `docs/data-model.md`, `docs/roadmap.md` e o `.env.example` antigo descrevem uma versão abandonada (`app/`). Deixe intocados
 
-## Como trabalhar com o Gabriel
+## Como trabalhar com o dono do projeto
 - Antes de cada etapa, explique em poucas linhas o objetivo, os conceitos e onde ela se encaixa. Etapas pequenas: pare ao fim, mostre o que mudou e como testar, e espere a confirmação
 - Soluções simples, sem overengineering (nada de Redis, Celery, microserviços, OAuth, perfis de permissão sem necessidade). Diferencie sempre MVP, melhoria futura e desnecessário agora
 - Valide com dados reais antes de avançar. Decisões quantitativas (Deal Score) por regras e dados, nunca por opinião de LLM
@@ -38,6 +38,6 @@ Use sempre o Python do projeto: `.venv\Scripts\python.exe`. O Python do sistema 
 
 ## Cuidados
 - Nunca commitar `.env`, `data/`, `browser_profile/`, `debug_snapshots/` nem arquivos `.db`. Nunca escrever token ou senha reais em arquivo versionado
-- Testar envio ao painel grava a marca `enviado_painel_em` em `frontend/data/ofertas.json` (dados reais do Gabriel). Faça backup antes e restaure depois
+- Testar envio ao painel grava a marca `enviado_painel_em` em `frontend/data/ofertas.json` (dados reais do dono). Faça backup antes e restaure depois
 - Coleta: respeitar termos de uso e limites. Não adicionar técnicas para burlar CAPTCHA, autenticação ou anti-bot. Se uma fonte bloquear, o caminho é API oficial ou reduzir a frequência
 - Todo pacote que o código importa precisa estar em `requirements.txt` (o do servidor é `requirements-painel.txt`, sem Playwright). Confirme instalando num venv limpo
