@@ -13,22 +13,18 @@ Convenções:
 |---|---|
 | VPS | Hostinger KVM com Ubuntu 22.04 ou 24.04 (o Python precisa ser 3.10 ou mais novo) |
 | Domínio | Um endereço seu, ex: `painel.seudominio.com`, com acesso para criar um registro DNS |
-| Código no GitHub | O repositório `gabriell-mendes/grupo-de-ofertas` com **todos os arquivos novos já enviados** (ver abaixo) |
+| Código no GitHub | O repositório `gabriell-mendes/grupo-de-ofertas` com o `main` atualizado (ver abaixo) |
 | No PC | PowerShell com `ssh` (já vem no Windows 10/11) |
 
-### Atenção: o código novo precisa estar no GitHub
+### Atenção: o servidor baixa o `main` do GitHub
 
-O servidor baixa o código do GitHub. Os arquivos das etapas 1 a 5 ainda podem estar só no seu PC. Confira:
-
-```powershell
-cd C:\dev-docs\projects\grupo-de-ofertas; git status --short
-```
-
-Tudo que aparecer com `??` (novo) ou `M` (modificado) e for do painel precisa ir para o GitHub. Em especial: `painel_online/`, `deploy/`, `historico.py`, `requirements-painel.txt` e `.gitattributes`. **Sem o `historico.py` o painel online não sobe.** Quando estiver conferido, envie:
+O servidor clona o `main`. As etapas 1 a 6 já estão lá (`painel_online/`, `deploy/`, `historico.py`, `requirements-painel.txt`, `.gitattributes`). Confira que o seu PC não tem nada pendente que o servidor precise:
 
 ```powershell
-git add painel_online deploy historico.py requirements-painel.txt .gitattributes docs tests; git commit -m "feat: painel online compartilhado (etapas 1 a 5)"; git push
+cd C:\dev-docs\projects\grupo-de-ofertas; git fetch origin; git status -sb; git log origin/main --oneline -3
 ```
+
+A primeira linha do `git status` não pode dizer `ahead` (commits seus que ainda não foram enviados). Se disser, envie o que for do painel com `git push` antes de seguir. **Sem o `historico.py` no GitHub o painel online não sobe.**
 
 Nunca envie o `.env`, a pasta `data/` nem arquivos `.db` (o `.gitignore` já bloqueia, mas confira o `git status` antes).
 
@@ -295,7 +291,11 @@ sudo systemctl start painel
 curl http://127.0.0.1:8000/api/saude
 ```
 
-## 12. Teste de ponta a ponta com um PC de verdade
+## 12. Teste de ponta a ponta (Etapa 7, rodada real)
+
+O teste automático (`tests/test_painel_online_etapa7.py`) já prova a lógica com dois PCs simulados. Esta rodada prova a mesma coisa no servidor de verdade, com HTTPS.
+
+**Parte A: um PC.**
 
 1. No navegador, entre em `https://painel.seudominio.com` e vá em **Meus tokens**. Gere um token para o seu PC e copie na hora.
 2. No PC, edite o `.env` na raiz do projeto:
@@ -305,6 +305,22 @@ curl http://127.0.0.1:8000/api/saude
    ```
 3. Reinicie o painel local (`frontend\iniciar.bat`), selecione uma oferta e clique em **Enviar ao painel**.
 4. Atualize o painel online: a oferta aparece com o seu nome em "Enviado por".
+
+> Testar o envio grava `enviado_painel_em` em `frontend/data/ofertas.json` (dados reais). Faça uma cópia do arquivo antes e restaure depois, se não quiser que essas ofertas fiquem marcadas como enviadas.
+
+**Parte B: dois usuários, o mesmo produto.** Peça a uma segunda pessoa (ou crie um segundo usuário de teste com o passo 9 e use outro PC ou outra pasta do projeto com um `.env` próprio).
+
+1. Cada um gera o **próprio** token e usa no `.env` do seu PC.
+2. Os dois enviam o **mesmo produto** (o mesmo código `MLB...` no link), com preços diferentes.
+3. No painel online: só **uma** oferta desse produto, com o preço do último envio e "Enviado por" igual a quem enviou por último.
+4. Conferência no servidor, que mostra o histórico dos dois preços com o autor certo:
+   ```bash
+   sudo -u painel sqlite3 /var/lib/painel/painel.db "SELECT o.id_produto, p.preco, u.nome FROM precos p JOIN ofertas o ON o.id=p.oferta_id JOIN usuarios u ON u.id=p.enviado_por ORDER BY p.id DESC LIMIT 10;"
+   ```
+   (Se o `sqlite3` não estiver instalado: `sudo apt install -y sqlite3`.)
+5. Saia da conta no navegador e abra `https://painel.seudominio.com/`: tem que redirecionar para `/login`.
+
+Se tudo bateu, a Etapa 7 está fechada também no servidor.
 
 ## 13. Atualizar o painel depois
 

@@ -12,7 +12,7 @@ Este guia explica como várias pessoas coletam ofertas no próprio computador e 
 | 4 | Botão "Enviar ao painel" no painel local | Pronta |
 | 5 | Deploy no VPS Hostinger | Arquivos e roteiro prontos; falta executar no seu servidor |
 | 6 | Guia por PC | Pronta |
-| 7 | Teste de ponta a ponta | A fazer |
+| 7 | Teste de ponta a ponta | Parte local pronta (dois PCs simulados, painel testado no navegador); falta a rodada real contra o VPS |
 
 ## 1. Visão geral
 
@@ -45,7 +45,8 @@ PC do João                     PC da pessoa B
 7. O servidor grava quem enviou, a partir do token. Esse campo nunca vem do cliente.
 8. Os administradores entram no painel online com usuário e senha e veem as ofertas de todos, juntas.
 
-Todos os passos já existem (Etapas 1 a 4). 
+Todos os passos já existem (Etapas 1 a 4). O cenário completo, com dois PCs enviando o mesmo produto, é coberto por testes automáticos (Etapa 7).
+
 ### Enviar ofertas do painel local ao painel online (Etapa 4)
 
 Pré-requisito: você tem usuário no painel online (quem administra o servidor cria com `criar-admin`) e gerou um token em "Meus tokens".
@@ -104,7 +105,7 @@ Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/api/ingest -Headers @{
 
 A resposta diz quantas ofertas foram `criadas`, `atualizadas` e `ignoradas` (com o motivo de cada ignorada). Enviar de novo o mesmo produto vira `atualizadas` e soma uma linha no histórico de preços. Atualize a página do painel para ver a oferta. O banco fica em `data/painel_online.db` (fora do git).
 
-Regras do envio: no máximo 500 ofertas e 1 MB por pedido. `url` e `imagem` precisam começar com `http://` ou `https://`. O campo `enviado_por` nunca é aceito do cliente: vem do token.
+Regras do envio: no máximo 500 ofertas e 1 MB por pedido. `url` e `imagem` precisam começar com `http://` ou `https://`. O campo `enviado_por` nunca é aceito do cliente: vem do token. Se um cliente mandar esse campo (ou qualquer outro desconhecido) no corpo, o servidor **ignora** o valor e grava o dono do token, sem recusar o envio. Há um teste para isso.
 
 **Esqueceu a senha?** No servidor, rode `.venv\Scripts\python.exe -m painel_online.cli redefinir-senha seunome`. Isso também derruba as sessões abertas desse usuário.
 
@@ -318,6 +319,9 @@ Porque cada PC calcula a nota com o histórico de preços que **ele mesmo** guar
 
 **Dois de nós enviamos o mesmo produto. O que acontece?**
 Não duplica. O painel online guarda uma oferta só, com os dados do último envio, e o histórico de preços fica com os dois preços (cada um com quem enviou). O campo "Enviado por" mostra quem enviou por último.
+
+**Como sei que o painel online se comporta direito com várias pessoas?**
+O arquivo `tests/test_painel_online_etapa7.py` simula dois PCs com tokens diferentes enviando o mesmo produto com preços diferentes. Ele confere que não duplica, que o histórico guarda os dois preços com o autor certo (vindo do token), que o descarte vale para todos, que rotas sem login redirecionam e que token e cookie não se misturam. Rode com `.venv\Scripts\python.exe -m pytest tests\test_painel_online_etapa7.py -q`.
 
 **Posso enviar a mesma oferta mais de uma vez?**
 Pode, é seguro. Ela é atualizada e soma uma linha no histórico de preços. Por isso o botão do topo manda só as que ainda não foram enviadas.
