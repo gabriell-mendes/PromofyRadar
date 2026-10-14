@@ -251,10 +251,11 @@
 <div id="modal" class="hidden fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
   <div class="bg-panel border border-line rounded-2xl w-full max-w-md p-5">
     <h2 class="font-semibold text-white mb-3">Preview da mensagem</h2>
-    <pre id="preview" class="whitespace-pre-wrap break-words text-sm bg-bg border border-line rounded-lg p-3 max-h-80 overflow-auto font-sans"></pre>
+    <pre id="preview" contenteditable="plaintext-only" title="Você pode editar o texto antes de enviar (ex.: trocar o link pelo de afiliado)" class="whitespace-pre-wrap break-words text-sm bg-bg border border-line rounded-lg p-3 max-h-80 overflow-auto font-sans"></pre>
     <div class="flex flex-wrap justify-end gap-2 mt-4">
       <button id="mCancelar" class="px-3 py-2 text-sm rounded-lg bg-bg border border-line hover:border-slate-500">Cancelar</button>
       <button id="mCopiar" class="px-3 py-2 text-sm rounded-lg bg-bg border border-line hover:border-slate-500">Copiar texto</button>
+      <button id="mTelegram" class="px-3 py-2 text-sm rounded-lg bg-bg border border-sky-500/50 text-sky-300 hover:bg-sky-500/10 disabled:opacity-40">Enviar ao Telegram</button>
       <button id="mEnviar" class="px-3 py-2 text-sm rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white">Marcar como enviado</button>
     </div>
   </div>

@@ -35,6 +35,7 @@ from pydantic import BaseModel
 
 from categorias_ml import CATEGORIAS, CUSTOM, TECNOLOGIA_SUB, categoria_painel, montar_url
 from ofertas_abas import ABA_CATEGORIA, ABAS, CUSTOM as CUSTOM_ABA, validar_escolha as validar_aba
+import telegram_envio
 
 BASE_DIR = Path(__file__).resolve().parent
 FRONTEND_DIR = BASE_DIR / "frontend"
@@ -446,6 +447,36 @@ def enviar_ao_painel(body: EnviarBody):
 
     _marcar_enviadas(enviadas_ok)
     return total
+
+
+# ---------- Envio ao Telegram ----------
+TELEGRAM_MAX = 4096  # limite do Telegram por mensagem
+
+
+class TelegramBody(BaseModel):
+    texto: str
+
+
+@app.get("/api/telegram/status")
+def telegram_status():
+    """Diz se o Telegram está configurado. Nunca devolve token nem chat id."""
+    token, chat = telegram_envio._config()
+    return {"configurado": bool(token and chat)}
+
+
+@app.post("/api/telegram/enviar", dependencies=[Depends(somente_painel)])
+def enviar_ao_telegram(body: TelegramBody):
+    """Manda ao Telegram o texto que você revisou (e talvez editou) no preview.
+    O envio é sempre manual: um clique, uma mensagem."""
+    texto = body.texto.strip()
+    if not texto:
+        raise HTTPException(status_code=400, detail="Mensagem vazia.")
+    if len(texto) > TELEGRAM_MAX:
+        raise HTTPException(status_code=400, detail=f"Mensagem grande demais ({len(texto)} de {TELEGRAM_MAX} caracteres).")
+    ok, erro = telegram_envio.enviar_mensagem(texto)
+    if not ok:
+        raise HTTPException(status_code=400 if "configurado" in erro else 502, detail=erro)
+    return {"ok": True}
 
 
 @app.get("/api/ping")

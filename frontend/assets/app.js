@@ -5,6 +5,7 @@ let offers = [];                 // lista vinda do JSON
 let descartados = [];            // vindos do servidor (data/descartados.json), com discarded_at
 let diasDescarte = 7;            // quantos dias até apagar de vez (o servidor confirma)
 let enviados = lerEnviados();    // { link: dataISO }  ("marcar como enviado": mensagem publicada à mão)
+let telegram = { configurado: false };  // envio ao Telegram (TELEGRAM_BOT_TOKEN e TELEGRAM_CHAT_ID no .env do servidor)
 let painel = { configurado: false, url: null };  // envio ao painel online (PAINEL_URL no .env do servidor)
 const selecionados = new Set();  // links marcados
 const f = { status: 'todos', cat: 'todas', min: 0, minScore: 0, busca: '', ordem: 'score' };
@@ -344,6 +345,29 @@ async function enviarAoPainel(links) {
   }
 }
 
+async function carregarTelegramStatus() {
+  try { telegram = await (await fetch('/api/telegram/status')).json(); } catch { telegram = { configurado: false }; }
+}
+
+/* Envia ao Telegram o texto do preview (já revisado/editado por você) e marca como enviado. */
+async function enviarAoTelegram() {
+  if (!telegram.configurado) {
+    toast('Telegram não configurado. Preencha TELEGRAM_BOT_TOKEN e TELEGRAM_CHAT_ID no .env e reinicie o painel.', 8000);
+    return;
+  }
+  const texto = $('preview').textContent.trim();
+  if (!texto || !previewKey) return;
+  if (!(await confirmar('Publicar esta mensagem no grupo do Telegram?', { titulo: 'Enviar ao Telegram?', botao: 'Enviar', perigo: false }))) return;
+  $('mTelegram').disabled = true;
+  try {
+    await api('/api/telegram/enviar', { texto });
+    marcarEnviado([previewKey]);
+    fecharPreview();
+    toast('Mensagem enviada ao Telegram.');
+  } catch (e) { toast(e.message, 10000); }
+  finally { $('mTelegram').disabled = false; }
+}
+
 async function carregarPainelStatus() {
   try { painel = await (await fetch('/api/painel/status')).json(); } catch { painel = { configurado: false, url: null }; }
 }
@@ -405,6 +429,7 @@ document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
   if (!$('confirmModal').classList.contains('hidden')) $('confirmNao').click(); else fecharPreview();
 });
+$('mTelegram').addEventListener('click', enviarAoTelegram);
 $('mEnviar').addEventListener('click', () => { if (previewKey) marcarEnviado([previewKey]); fecharPreview(); });
 $('mCopiar').addEventListener('click', async () => {
   try { await navigator.clipboard.writeText($('preview').textContent); $('mCopiar').textContent = 'Copiado'; setTimeout(() => ($('mCopiar').textContent = 'Copiar texto'), 1500); } catch {}
@@ -458,3 +483,4 @@ setView(Object.values(VIEWS).includes(hash) ? hash : 'produtos');
 carregar();
 carregarDescartados();
 carregarPainelStatus();
+carregarTelegramStatus();
