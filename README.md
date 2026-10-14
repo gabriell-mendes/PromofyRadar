@@ -182,6 +182,43 @@ pra `app/sources/mercadolivre_scraper.py` (scraping real, mais difícil de
 testar sem mockar Playwright/HTML) nem pra `app/filtro.py` (mais simples
 de cobrir — é só matemática sobre `Product`).
 
+### 6. Configuração pessoal (opcional)
+
+O código e os docs usam valores genéricos nos exemplos: `PC do João` (nome do
+PC ao gerar token), `admin` (usuário de teste), `meu-pc` (comentário da chave
+SSH) e `gabriell-mendes/grupo-de-ofertas` (repositório no GitHub). Se quiser
+guardar os **seus** valores num lugar só, sem nunca versionar, faça no seu PC:
+
+1. Na raiz do projeto, crie o arquivo `.env.pessoal` (já está no `.gitignore`):
+
+   ```powershell
+   notepad .env.pessoal
+   ```
+
+2. Cole e troque pelos seus valores:
+
+   ```
+   NOME_PESSOAL=SeuNome
+   GITHUB_REPO=seu-usuario/grupo-de-ofertas
+   SSH_CHAVE_COMENTARIO=nome-do-seu-pc
+   ROTULO_PC_EXEMPLO=PC do SeuNome
+   USUARIO_ADMIN_TESTE=seunome
+   ```
+
+3. Confirme que o git ignora o arquivo (tem que mostrar a linha do `.gitignore`):
+
+   ```powershell
+   git check-ignore -v .env.pessoal
+   ```
+
+4. Use os valores ao seguir os guias: o rótulo ao gerar token em "Meus
+   tokens", o usuário em `criar-admin`, o comentário em `ssh-keygen -C` e o
+   repositório no `git clone`.
+
+O `.env.pessoal` é só um registro seu: nenhum código o lê, e ele não se
+mistura com o `.env` do projeto (que guarda `PAINEL_URL` e `PAINEL_TOKEN`).
+Nunca coloque senha nem token real nele.
+
 ## Estrutura do projeto
 
 ```
