@@ -18,7 +18,7 @@ Brasil para afiliados):
   precisamos pro Deal Score (ver app/scoring.py).
 - Pré-requisito: `app_id`/`app_secret` só existem depois de (1) virar
   afiliado Shopee aprovado e (2) pedir liberação de API via formulário de
-  suporte do painel de afiliado — isso é uma ação que só o Gabriel pode
+  suporte do painel de afiliado — isso é uma ação que só o dono da conta pode
   fazer (cadastro pessoal), não algo automatizável por este código.
 
 IMPORTANTE — mesma ressalva que o collector do Mercado Livre já tinha: os

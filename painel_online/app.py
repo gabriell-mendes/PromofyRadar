@@ -56,7 +56,7 @@ class LoginIn(BaseModel):
 
 
 class TokenIn(BaseModel):
-    rotulo: str | None = Field(default=None, max_length=60)  # ex: "PC do Gabriel"
+    rotulo: str | None = Field(default=None, max_length=60)  # ex: "PC do João"
 
 
 def criar_app(db_path: str | Path | None = None, cookie_secure: bool | None = None) -> FastAPI:

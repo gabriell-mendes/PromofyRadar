@@ -98,7 +98,7 @@ registrando em `app/config.py`.
 | Decisão | Motivo |
 |---|---|
 | Fonte ativa hoje: Mercado Livre via scraping (Playwright) | API oficial bloqueia terceiros não certificados (`PA_UNAUTHORIZED_RESULT_FROM_POLICIES`); scraping foi um pivô consciente depois disso, aceitando o risco de mudança de HTML e de termos de uso — ver `docs/decisao-fonte-de-dados.md` |
-| Shopee mantida como segunda fonte via API oficial | Já implementada, só falta credencial (ação pessoal do Gabriel); continua o candidato "mais seguro" (API oficial, sem risco de bloqueio de layout) |
+| Shopee mantida como segunda fonte via API oficial | Já implementada, só falta credencial (ação pessoal do dono); continua o candidato "mais seguro" (API oficial, sem risco de bloqueio de layout) |
 | Toda fonte concreta implementa `OfferSource` | Permite trocar/somar fonte sem espalhar `if fonte == "x"` pelo projeto |
 | Scraping sem nenhuma técnica de evasão | Sem mascarar automação, sem burlar CAPTCHA/anti-bot, sem IP rotation; se detectar página de bloqueio/verificação, para e reporta erro em vez de insistir |
 | Seletores CSS centralizados num dict (`SELECTORS`) por fonte | Se o site mudar o HTML, o ajuste fica isolado num só lugar por arquivo, sem caçar seletor espalhado pelo código |
@@ -112,7 +112,7 @@ registrando em `app/config.py`.
 - Armazenamento simples → PostgreSQL com schema de produto/oferta/preço/loja
 - Deal Score baseado só na busca atual → fatores adicionais conforme
   histórico de preços existir
-- Shopee ativada assim que Gabriel tiver credenciais; AliExpress como
+- Shopee ativada assim que o dono tiver credenciais; AliExpress como
   candidata natural a terceira fonte (ver `docs/decisao-fonte-de-dados.md`)
 - Mercado Livre via API oficial volta a ser avaliado se/quando
   certificação de parceiro existir (`app/sources/mercadolivre.py`, hoje

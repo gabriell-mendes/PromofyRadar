@@ -86,7 +86,7 @@ MVP = SHOPEE AFFILIATE OPEN API
   OAuth) — ver `app/sources/shopee.py`.
 - **Documentação:** https://www.affiliateshopee.com.br/documentacao
   (documentação oficial da Shopee Brasil pra afiliados).
-- **Requisitos pra ativar de verdade (ação do Gabriel, fora do código):**
+- **Requisitos pra ativar de verdade (ação do dono, fora do código):**
   1. Virar afiliado Shopee (cadastro pessoal, grátis, sem exigência de
      vendas prévias);
   2. Pedir liberação de API pelo painel de afiliado (formulário de
@@ -109,7 +109,7 @@ MVP = SHOPEE AFFILIATE OPEN API
   - a API não expõe disponibilidade de estoque nem frete — por isso esses
     campos não entraram em `Product` (ver `docs/data-model.md`).
 - **Custo:** zero — o modelo é comissão sobre venda gerada pelo link de
-  afiliado (gerado manualmente pelo Gabriel, fora do pipeline automático,
+  afiliado (gerado manualmente pelo dono, fora do pipeline automático,
   decisão já registrada antes desta).
 - **Manutenção:** uma única fonte, isolada em `app/sources/shopee.py`,
   atrás da interface `OfferSource` — trocar ou adicionar fonte não exige
@@ -122,7 +122,7 @@ MVP = SHOPEE AFFILIATE OPEN API
 
 ### Mercado Livre — quando reavaliar
 
-Fica registrado como decisão arquitetural, não removido: **se** o Gabriel
+Fica registrado como decisão arquitetural, não removido: **se** o dono
 conseguir certificação de parceiro de desenvolvedor do Mercado Livre (via
 contato direto, não self-service), `app/sources/mercadolivre.py` já tem a
 normalização pronta e testada — só é preciso trocar
@@ -161,9 +161,9 @@ teoria.
 
 ## E. Próximos passos pra virar um MVP operacional
 
-1. Gabriel: cadastrar-se como afiliado Shopee e pedir liberação de API
+1. Dono: cadastrar-se como afiliado Shopee e pedir liberação de API
    (único passo que não pode ser automatizado — exige dados pessoais/de
-   pagamento do próprio Gabriel).
+   pagamento do próprio dono).
 2. Preencher `.env` com `SHOPEE_APP_ID`/`SHOPEE_APP_SECRET` reais.
 3. Rodar `python -m app.sources.shopee "notebook"` e comparar o JSON cru
    contra o que `normalizar()` espera — corrigir nomes de campo se a API
@@ -179,11 +179,11 @@ teoria.
 ## F. Atualização (2026-09-15/16): pivô para scraping
 
 As seções A-E acima levaram à escolha da Shopee como fonte via API. Na
-prática, o passo 1 da seção E ("Gabriel: cadastrar-se como afiliado
+prática, o passo 1 da seção E ("Dono: cadastrar-se como afiliado
 Shopee...") depende de aprovação externa (~2 semanas segundo relatos), o
 que deixava o MVP inteiro parado esperando um terceiro.
 
-**Decisão (2026-09-15):** em vez de esperar, Gabriel escolheu construir a
+**Decisão (2026-09-15):** em vez de esperar, o dono escolheu construir a
 coleta do Mercado Livre via **scraping com Playwright** (simular um
 navegador real lendo a página pública de busca), aceitando conscientemente
 o risco que isso implica: o HTML de um site muda com mais frequência que

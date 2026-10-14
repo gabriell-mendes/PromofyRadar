@@ -65,7 +65,7 @@ usermod -aG sudo deploy
 **No PC**, gere uma chave SSH (se ainda não tiver uma) e instale a parte pública no usuário `deploy`. Aceite os padrões do `ssh-keygen`:
 
 ```powershell
-ssh-keygen -t ed25519 -C "gabriel-pc"
+ssh-keygen -t ed25519 -C "meu-pc"
 ```
 
 ```powershell

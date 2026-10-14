@@ -162,14 +162,14 @@ def test_token_nao_serve_para_ver_ofertas_nem_gerenciar_tokens(p):
 # ---------- tokens do próprio usuário ----------
 def test_gerar_listar_usar_e_revogar_token(p):
     ana, pc = p.entrar("ana"), p.cliente()
-    r = ana.post("/api/tokens", json={"rotulo": "PC do Gabriel"})
+    r = ana.post("/api/tokens", json={"rotulo": "PC do João"})
     assert r.status_code == 200 and r.headers["cache-control"] == "no-store"
     token, token_id = r.json()["token"], r.json()["id"]
     assert token.startswith("td_")
 
     # a lista nunca devolve o token em texto puro
     lista = ana.get("/api/tokens").json()["tokens"]
-    assert [t["rotulo"] for t in lista] == ["PC do Gabriel"] and token not in str(lista)
+    assert [t["rotulo"] for t in lista] == ["PC do João"] and token not in str(lista)
     assert token not in [x[0] for x in p.con.execute("SELECT token_hash FROM tokens_api")]
 
     h = {"Authorization": f"Bearer {token}"}
@@ -203,18 +203,18 @@ def test_cli_criar_admin_e_redefinir(monkeypatch, tmp_path, capsys):
     monkeypatch.setattr(getpass, "getpass", lambda _="": next(senhas))
 
     senhas = iter([SENHA, SENHA])
-    assert cli.main(["x", "criar-admin", "gabriel"]) == 0
+    assert cli.main(["x", "criar-admin", "admin"]) == 0
     con = conectar(db)
-    assert con.execute("SELECT senha_hash FROM usuarios WHERE nome = 'gabriel'").fetchone()[0].startswith("$2")
+    assert con.execute("SELECT senha_hash FROM usuarios WHERE nome = 'admin'").fetchone()[0].startswith("$2")
 
     senhas = iter([SENHA, SENHA])
-    assert cli.main(["x", "criar-admin", "gabriel"]) == 1  # já existe
+    assert cli.main(["x", "criar-admin", "admin"]) == 1  # já existe
     senhas = iter(["curta", "curta"])
     assert cli.main(["x", "criar-admin", "novo"]) == 1  # senha fraca
     senhas = iter([SENHA, "diferente-da-outra"])
     assert cli.main(["x", "criar-admin", "novo"]) == 1  # confirmação não confere
     senhas = iter(["outra-senha-bem-longa"] * 2)
-    assert cli.main(["x", "redefinir-senha", "gabriel"]) == 0
+    assert cli.main(["x", "redefinir-senha", "admin"]) == 0
     senhas = iter([SENHA, SENHA])
     assert cli.main(["x", "redefinir-senha", "fantasma"]) == 1
     assert cli.main(["x"]) == 1

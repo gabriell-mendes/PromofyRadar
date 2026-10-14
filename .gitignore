@@ -29,5 +29,5 @@ dist/
 data/
 *.db
 
-# Anotações de desenvolvimento (só no PC do Gabriel)
+# Anotações de desenvolvimento (só neste PC)
 docs/historico-de-sessoes/

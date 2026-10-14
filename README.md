@@ -52,7 +52,7 @@ legítima); esse código antigo continua no repo, desativado, como
 
 **Shopee Affiliate Open API** (`app/sources/shopee.py`) está implementada
 e testada com mocks, mas **ainda sem credenciais reais** — depende de
-Gabriel virar afiliado aprovado e pedir liberação de API. Sem isso, ela
+o dono virar afiliado aprovado e pedir liberação de API. Sem isso, ela
 levanta erro de configuração em vez de dados.
 
 A dashboard de revisão manual (`app/`) já roda o pipeline real de ponta a
