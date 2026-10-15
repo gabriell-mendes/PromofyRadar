@@ -354,18 +354,26 @@ def _erro_painel(status: int) -> tuple[int, str]:
     return 502, f"O painel recusou o envio (HTTP {status})."
 
 
-def _marcar_enviadas(links: list[str]):
-    """Anota em ofertas.json quais já foram ao painel (tira o aviso de pendente de envio).
-    Uma nova coleta do mesmo produto sobrescreve a oferta e zera a marca: aí vale reenviar."""
-    if not links:
+def _marcar_resultado(enviadas: list[str], recusadas: dict[str, str]):
+    """Anota em ofertas.json o que o painel fez com cada oferta: `enviado_painel_em` nas que
+    chegaram (tira o aviso de pendente) e `recusada_painel_*` nas que ele recusou (assim o
+    envio "todas pendentes" não as manda de novo toda vez). `recusadas` é {link: motivo}.
+    Uma nova coleta do mesmo produto sobrescreve a oferta e zera as marcas: aí vale reenviar."""
+    if not enviadas and not recusadas:
         return
     agora = _agora().isoformat(timespec="seconds")
-    alvo = set(links)
+    ok = set(enviadas)
     with DATA_LOCK:
         atuais = _ler(OFERTAS_JSON)
         for o in atuais:
-            if o.get("link") in alvo:
+            link = o.get("link")
+            if link in ok:
                 o["enviado_painel_em"] = agora
+                o.pop("recusada_painel_em", None)
+                o.pop("recusada_painel_motivo", None)
+            elif link in recusadas:
+                o["recusada_painel_em"] = agora
+                o["recusada_painel_motivo"] = recusadas[link]
         _gravar(OFERTAS_JSON, atuais)
 
 
@@ -378,7 +386,8 @@ def painel_status():
 
 @app.post("/api/painel/enviar", dependencies=[Depends(somente_painel)])
 def enviar_ao_painel(body: EnviarBody):
-    """Manda ofertas ao painel online. Com `links`, só essas; sem, todas as ainda não enviadas.
+    """Manda ofertas ao painel online. Com `links`, só essas; sem, todas as ainda não enviadas
+    e não recusadas (as recusadas só voltam se a pessoa as escolher de novo).
     Reenviar é seguro: o painel não duplica (atualiza e soma uma linha no histórico de preços)."""
     url, token = _config_painel()
     if not url or not token:
@@ -390,7 +399,8 @@ def enviar_ao_painel(body: EnviarBody):
     with DATA_LOCK:
         atuais = _ler(OFERTAS_JSON)
     if body.links is None:
-        candidatas = [o for o in atuais if o.get("link") and not o.get("enviado_painel_em")]
+        candidatas = [o for o in atuais
+                      if o.get("link") and not o.get("enviado_painel_em") and not o.get("recusada_painel_em")]
     else:
         pedidos = set(body.links)
         candidatas = [o for o in atuais if o.get("link") in pedidos]
@@ -405,6 +415,7 @@ def enviar_ao_painel(body: EnviarBody):
     coletado_em = _agora().isoformat(timespec="seconds")
     total = {"criadas": 0, "atualizadas": 0, "ignoradas": 0, "detalhes_ignoradas": [], "de_teste": de_teste}
     enviadas_ok: list[str] = []
+    recusadas_motivo: dict[str, str] = {}
 
     for ini in range(0, len(ofertas), LOTE_PAINEL):
         lote = ofertas[ini:ini + LOTE_PAINEL]
@@ -429,7 +440,7 @@ def enviar_ao_painel(body: EnviarBody):
         except requests.exceptions.RequestException as e:
             falha = f"Erro ao enviar ao painel: {type(e).__name__}."
         if falha:
-            _marcar_enviadas(enviadas_ok)
+            _marcar_resultado(enviadas_ok, recusadas_motivo)
             if enviadas_ok:
                 falha += f" Já chegaram {len(enviadas_ok)} oferta(s) antes do erro; pode reenviar sem duplicar."
             raise HTTPException(status_code=status_erro, detail=falha)
@@ -442,9 +453,11 @@ def enviar_ao_painel(body: EnviarBody):
         for d in res["detalhes_ignoradas"]:
             alvo = lote[d["indice"]] if d["indice"] < len(lote) else {}
             total["detalhes_ignoradas"].append({"titulo": (alvo.get("title") or "")[:80], "motivo": d["motivo"]})
+            if alvo.get("link"):
+                recusadas_motivo[alvo["link"]] = d["motivo"]
         enviadas_ok += [o["link"] for i, o in enumerate(lote) if i not in recusadas]
 
-    _marcar_enviadas(enviadas_ok)
+    _marcar_resultado(enviadas_ok, recusadas_motivo)
     return total
 
 

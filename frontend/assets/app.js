@@ -165,7 +165,7 @@ function render() {
   $('btnLoteEnviar').classList.toggle('hidden', emDesc);
   $('btnLoteDescartar').classList.toggle('hidden', emDesc);
   $('btnLotePainel').classList.toggle('hidden', emDesc);
-  const pendentesPainel = base.filter((o) => !o.teste && !o.enviado_painel_em).length;
+  const pendentesPainel = base.filter((o) => !o.teste && !o.enviado_painel_em && !o.recusada_painel_em).length;
   $('btnPainel').textContent = pendentesPainel ? `Enviar ao painel (${pendentesPainel})` : 'Enviar ao painel';
   $('btnPainel').disabled = pendentesPainel === 0;
   $('btnLoteRestaurar').classList.toggle('hidden', !emDesc);
@@ -197,6 +197,7 @@ function card(o) {
       ${temDesc ? `<span class="absolute bottom-3 left-3 text-xs font-bold px-2 py-1 rounded bg-emerald-500 text-white">-${Math.round(o.discount)}%</span>` : ''}
       <span class="absolute bottom-3 right-3 text-[10px] px-2 py-1 rounded bg-black/60 text-slate-200">${esc(categoriaDe(o))}</span>
       ${o.teste ? '<span class="absolute top-10 right-3 text-[10px] font-bold px-2 py-1 rounded bg-fuchsia-500/30 text-fuchsia-200">TESTE</span>' : ''}
+      ${o.recusada_painel_em && !o.enviado_painel_em ? `<span class="absolute top-10 left-3 text-[10px] font-bold tracking-wide px-2 py-1 rounded bg-rose-500/20 text-rose-300" title="${esc('Recusada pelo painel online: ' + (o.recusada_painel_motivo || 'sem motivo informado') + '. Selecione e use Enviar ao painel para tentar de novo.')}">RECUSADA</span>` : ''}
       ${o.enviado_painel_em ? '<span class="absolute top-10 left-3 text-[10px] font-bold tracking-wide px-2 py-1 rounded bg-sky-500/20 text-sky-300" title="Já enviada ao painel online">NO PAINEL</span>' : ''}
       ${img}
     </div>
@@ -318,7 +319,7 @@ async function enviarAoPainel(links) {
     toast('Envio não configurado. Preencha PAINEL_URL e PAINEL_TOKEN no .env e reinicie o painel.', 8000);
     return;
   }
-  const alvo = ativos().filter((o) => !o.teste && (links ? links.includes(o.link) : !o.enviado_painel_em));
+  const alvo = ativos().filter((o) => !o.teste && (links ? links.includes(o.link) : !o.enviado_painel_em && !o.recusada_painel_em));
   const testes = links ? ativos().filter((o) => o.teste && links.includes(o.link)).length : 0;
   if (!alvo.length) { toast('Nenhuma oferta para enviar' + (testes ? ' (ofertas de teste não são enviadas).' : '.')); return; }
   const jaForam = alvo.filter((o) => o.enviado_painel_em).length;

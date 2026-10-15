@@ -67,7 +67,7 @@ A URL precisa ser `https://` (só `localhost` pode ser `http`). Reinicie o paine
 - Marque as ofertas desejadas e clique em **Enviar ao painel** na barra de baixo, ou
 - Clique em **Enviar ao painel (N)** no topo: manda todas as que ainda não foram enviadas (N é quantas faltam).
 
-O painel mostra para qual endereço vai e pede confirmação. Ao terminar, aparece quantas foram criadas, atualizadas ou recusadas, e as enviadas ganham a etiqueta **NO PAINEL**.
+O painel mostra para qual endereço vai e pede confirmação. Ao terminar, aparece quantas foram criadas, atualizadas ou recusadas, e as enviadas ganham a etiqueta **NO PAINEL**. As que o painel recusou ganham a etiqueta **RECUSADA** (passe o mouse para ver o motivo), saem do contador e não são reenviadas sozinhas.
 
 **4. Confira** entrando no painel online: as ofertas aparecem com o seu nome em "Enviado por".
 
@@ -194,7 +194,7 @@ Salve e feche. O `.env` é só seu: o Git o ignora, e ele **nunca** deve ser env
 - Marque as ofertas e clique em **Enviar ao painel** na barra de baixo, ou
 - Clique em **Enviar ao painel (N)** no topo para mandar todas as que ainda não foram enviadas.
 
-Confirme na janelinha (ela mostra para qual endereço vai). As enviadas ganham a etiqueta **NO PAINEL**.
+Confirme na janelinha (ela mostra para qual endereço vai). As enviadas ganham a etiqueta **NO PAINEL** e as recusadas, **RECUSADA**. Para tentar de novo uma recusada (depois de corrigir o problema), selecione-a e use o botão da barra de seleção.
 
 **5. Confira no painel online.** Entre com o seu usuário: as ofertas aparecem com o seu nome em **Enviado por**.
 
@@ -306,7 +306,7 @@ Resumo do que protege o servidor:
 | Porta 5500 em uso | Já existe um painel local aberto | Feche o outro, ou `$env:TECHDROP_PORT = "5501"; .\frontend\iniciar.bat` |
 | Navegador mostra `502 Bad Gateway` | O serviço do painel no servidor caiu | No servidor: `sudo journalctl -u painel -n 50 --no-pager` (mais em `docs/deploy-vps.md`) |
 | Envio retorna 422 | Lista vazia ou mais de 500 ofertas | Ajuste o tamanho do lote |
-| Oferta aparece em `ignoradas` | Falhou na validação ou o produto foi descartado no painel | Veja o `motivo` em `detalhes_ignoradas` |
+| Oferta aparece em `ignoradas` (etiqueta RECUSADA no painel local) | Falhou na validação ou o produto foi descartado no painel | Veja o motivo no aviso ou passando o mouse na etiqueta. Uma nova coleta do produto zera a marca |
 | `criar-admin` trava no PowerShell ao redirecionar a entrada | A senha é lida do teclado, não de pipe | Rode o comando direto e digite a senha |
 
 ## 7. Perguntas frequentes

@@ -179,14 +179,67 @@ def test_oferta_de_teste_nunca_vai_ao_painel_real(local, monkeypatch, online):
     assert local.post("/api/painel/enviar", json={}).status_code == 400
 
 
-def test_oferta_recusada_pelo_painel_aparece_com_titulo_e_nao_e_marcada(local, monkeypatch, online):
+def test_oferta_recusada_pelo_painel_aparece_com_titulo_e_fica_marcada_como_recusada(local, monkeypatch, online):
     configurar(monkeypatch, online)
     gravar([oferta(1), oferta(2, price=0)])
     res = local.post("/api/painel/enviar", json={}).json()
     assert (res["criadas"], res["ignoradas"]) == (1, 1)
     assert res["detalhes_ignoradas"][0]["titulo"] == "Produto 2" and "preco" in res["detalhes_ignoradas"][0]["motivo"]
-    marcadas = {o["title"]: bool(o.get("enviado_painel_em")) for o in lidas()}
-    assert marcadas == {"Produto 1": True, "Produto 2": False}
+    por_titulo = {o["title"]: o for o in lidas()}
+    assert por_titulo["Produto 1"].get("enviado_painel_em") and not por_titulo["Produto 1"].get("recusada_painel_em")
+    # A recusada não ganha a marca de enviada, mas guarda quando e por quê.
+    assert not por_titulo["Produto 2"].get("enviado_painel_em")
+    assert por_titulo["Produto 2"]["recusada_painel_em"]
+    assert "preco" in por_titulo["Produto 2"]["recusada_painel_motivo"]
+
+
+def test_envio_de_todas_pendentes_nao_reenvia_as_recusadas(local, monkeypatch, online):
+    configurar(monkeypatch, online)
+    gravar([oferta(1), oferta(2, price=0)])
+    local.post("/api/painel/enviar", json={})
+    chamadas = []
+    real = requests.post
+    monkeypatch.setattr(srv.requests, "post", lambda *a, **kw: chamadas.append(1) or real(*a, **kw))
+    # Só sobrou a recusada: não há mais nada pendente e nenhuma chamada sai da máquina.
+    r = local.post("/api/painel/enviar", json={})
+    assert r.status_code == 400 and not chamadas
+
+
+def test_recusada_pode_ser_reenviada_se_a_pessoa_escolher_e_perde_a_marca_ao_dar_certo(local, monkeypatch, online):
+    configurar(monkeypatch, online)
+    ruim = oferta(2, price=0)
+    gravar([ruim])
+    local.post("/api/painel/enviar", json={})
+    assert lidas()[0]["recusada_painel_em"]
+
+    # A pessoa corrige o preço e escolhe a oferta de novo: o envio manual passa pela marca.
+    corrigida = lidas()[0] | {"price": 150.0}
+    gravar([corrigida])
+    res = local.post("/api/painel/enviar", json={"links": [corrigida["link"]]}).json()
+    assert (res["criadas"], res["ignoradas"]) == (1, 0)
+    salva = lidas()[0]
+    assert salva["enviado_painel_em"]
+    assert "recusada_painel_em" not in salva and "recusada_painel_motivo" not in salva
+
+
+def test_recusada_e_marcada_mesmo_quando_um_lote_posterior_falha(local, monkeypatch, online):
+    configurar(monkeypatch, online)
+    monkeypatch.setattr(srv, "LOTE_PAINEL", 2)
+    gravar([oferta(1), oferta(2, price=0), oferta(3), oferta(4)])
+    real, chamadas = requests.post, []
+
+    def cai_no_segundo_lote(*a, **kw):
+        chamadas.append(1)
+        if len(chamadas) == 2:
+            raise requests.exceptions.ConnectionError("caiu")
+        return real(*a, **kw)
+
+    monkeypatch.setattr(srv.requests, "post", cai_no_segundo_lote)
+    assert local.post("/api/painel/enviar", json={}).status_code == 502
+    por_titulo = {o["title"]: o for o in lidas()}
+    assert por_titulo["Produto 1"].get("enviado_painel_em")
+    assert por_titulo["Produto 2"].get("recusada_painel_em")
+    assert not por_titulo["Produto 3"].get("enviado_painel_em") and not por_titulo["Produto 3"].get("recusada_painel_em")
 
 
 def test_envio_em_lotes(local, monkeypatch, online):

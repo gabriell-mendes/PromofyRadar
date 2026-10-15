@@ -46,7 +46,7 @@ Dois PCs (clientes sem cookie, cada um só com o seu token) e dois administrador
 
 ## Achados
 
-- Uma oferta recusada pela validação nunca ganha a marca de enviada. Ela continua "pendente" e é reenviada (e recusada de novo) a cada clique em "Enviar ao painel (N)". Não causa dano, só repetição. Melhoria pequena possível: marcar como recusada.
+- **Resolvido depois:** a oferta recusada pelo painel agora ganha `recusada_painel_em` e `recusada_painel_motivo` em `ofertas.json`, a etiqueta RECUSADA (com o motivo ao passar o mouse) e sai do contador "Enviar ao painel (N)". O envio de todas as pendentes não a reenvia; escolhendo-a à mão ela vai de novo, e se der certo a marca some. Nova coleta do produto zera a marca.
 - O visual do painel local depende do CDN do Tailwind. Sem internet, a página abre sem estilo.
 
 ## Não validado
@@ -56,5 +56,5 @@ A rodada contra o VPS real, com HTTPS e dois usuários de verdade (`docs/deploy-
 ## MVP, melhoria futura, desnecessário
 
 - MVP: o que foi feito.
-- Melhoria futura: teste de navegador automatizado e opcional dentro do projeto (exige Playwright nos testes), marcar ofertas recusadas para não reenviar, registrar no log quem tentou forjar `enviado_por`.
+- Melhoria futura: teste de navegador automatizado e opcional dentro do projeto (exige Playwright nos testes), registrar no log quem tentou forjar `enviado_por`.
 - Desnecessário agora: `extra='forbid'` no contrato, ferramentas de teste de carga.
