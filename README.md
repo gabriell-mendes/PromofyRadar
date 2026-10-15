@@ -1,12 +1,12 @@
 # Grupo de Ofertas
 
-Ferramenta pessoal para encontrar automaticamente boas ofertas de produtos e
+Ferramenta para encontrar automaticamente boas ofertas de produtos e
 divulgá-las em canais de Deal Alerts (ex: Telegram), monetizando via
 programas de afiliados.
 
 ## Objetivo
 
-Não é um SaaS comercial. É uma ferramenta para uso próprio que também serve
+Não é um SaaS comercial. É uma ferramenta para que serve
 como projeto de aprendizado prático de Python, scraping, APIs, banco de
 dados e arquitetura de backend.
 
