@@ -1,4 +1,4 @@
-"""Envio de mensagens ao Telegram (Bot API). Só precisa de TELEGRAM_BOT_TOKEN e TELEGRAM_CHAT_ID no .env.
+r"""Envio de mensagens ao Telegram (Bot API). Só precisa de TELEGRAM_BOT_TOKEN e TELEGRAM_CHAT_ID no .env.
 
 Uso (PowerShell, da raiz do projeto):
   .venv\Scripts\python.exe telegram_envio.py descobrir-chat      # lista os chat ids que o bot enxerga
