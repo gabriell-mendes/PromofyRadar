@@ -2,7 +2,7 @@
 
 Uso (PowerShell, da raiz do projeto):
   .venv\Scripts\python.exe telegram_envio.py descobrir-chat      # lista os chat ids que o bot enxerga
-  .venv\Scripts\python.exe telegram_envio.py enviar "texto"      # manda uma mensagem de teste
+  .venv\\Scripts\\python.exe telegram_envio.py enviar "texto"      # manda uma mensagem de teste
 
 O token fica só no .env (nunca no código, nunca no navegador) e nunca aparece em mensagens de erro.
 """
