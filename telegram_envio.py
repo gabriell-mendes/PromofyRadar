@@ -1,8 +1,8 @@
-"""Envio de mensagens ao Telegram (Bot API). Só precisa de TELEGRAM_BOT_TOKEN e TELEGRAM_CHAT_ID no .env.
+r"""Envio de mensagens ao Telegram (Bot API). Só precisa de TELEGRAM_BOT_TOKEN e TELEGRAM_CHAT_ID no .env.
 
 Uso (PowerShell, da raiz do projeto):
-  .venv\Scripts\python.exe telegram_envio.py descobrir-chat      # lista os chat ids que o bot enxerga
-  .venv\\Scripts\\python.exe telegram_envio.py enviar "texto"      # manda uma mensagem de teste
+  .\.venv\Scripts\python.exe telegram_envio.py descobrir-chat      # lista os chat ids que o bot enxerga
+  .\.venv\Scripts\\python.exe telegram_envio.py enviar "texto"      # manda uma mensagem de teste
 
 O token fica só no .env (nunca no código, nunca no navegador) e nunca aparece em mensagens de erro.
 """
@@ -10,7 +10,6 @@ O token fica só no .env (nunca no código, nunca no navegador) e nunca aparece 
 import os
 import sys
 from pathlib import Path
-
 import requests
 from dotenv import dotenv_values
 
