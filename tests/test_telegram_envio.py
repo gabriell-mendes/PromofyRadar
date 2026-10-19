@@ -69,3 +69,56 @@ def test_descobrir_chats(monkeypatch):
     ]}
     chats, erro = tg.descobrir_chats(get=lambda *a, **k: Resp(200, dados))
     assert erro is None and chats == [("-100111", "Grupo Ofertas"), ("-100222", "Canal")]
+
+
+def _api_falsa(respostas):
+    """post falso: devolve a resposta registrada para o método chamado e guarda as chamadas."""
+    chamadas = []
+
+    def post(url, json, timeout, allow_redirects):
+        metodo = url.rsplit("/", 1)[1]
+        chamadas.append((metodo, json))
+        return respostas[metodo]
+
+    return post, chamadas
+
+
+def test_verificar_ok(monkeypatch):
+    _config(monkeypatch)
+    post, chamadas = _api_falsa({
+        "getMe": Resp(200, {"result": {"id": 7, "username": "techdropblogbot", "first_name": "TechDrop_bot"}}),
+        "getChatMember": Resp(200, {"result": {"status": "administrator"}}),
+    })
+    linhas, ok = tg.verificar(post=post)
+    assert ok and "@techdropblogbot" in linhas[0]
+    assert chamadas[1] == ("getChatMember", {"chat_id": "-100999", "user_id": 7})
+
+
+def test_verificar_bot_nao_e_admin(monkeypatch):
+    _config(monkeypatch)
+    post, _ = _api_falsa({
+        "getMe": Resp(200, {"result": {"id": 7, "username": "b", "first_name": "B"}}),
+        "getChatMember": Resp(200, {"result": {"status": "member"}}),
+    })
+    linhas, ok = tg.verificar(post=post)
+    assert not ok and "administrador" in linhas[-1]
+
+
+def test_verificar_sem_chat_e_com_token_invalido(monkeypatch):
+    _config(monkeypatch, chat="")
+    post, _ = _api_falsa({"getMe": Resp(200, {"result": {"id": 7, "username": "b", "first_name": "B"}})})
+    linhas, ok = tg.verificar(post=post)
+    assert not ok and "TELEGRAM_CHAT_ID" in linhas[-1]
+
+    _config(monkeypatch)
+    linhas, ok = tg.verificar(post=lambda *a, **k: Resp(401))
+    assert not ok and "inválido" in linhas[0] and "123:ABC" not in linhas[0]
+
+
+def test_configurar_perfil_respeita_limites_do_telegram(monkeypatch):
+    _config(monkeypatch)
+    post, chamadas = _api_falsa({"setMyShortDescription": Resp(200, {"result": True}), "setMyDescription": Resp(200, {"result": True})})
+    assert tg.configurar_perfil(post=post) == (True, None)
+    assert [c[0] for c in chamadas] == ["setMyShortDescription", "setMyDescription"]
+    assert len(tg.PERFIL_SOBRE) <= 120 and len(tg.PERFIL_DESCRICAO) <= 512
+    assert "—" not in tg.PERFIL_SOBRE + tg.PERFIL_DESCRICAO
