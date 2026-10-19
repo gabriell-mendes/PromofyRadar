@@ -9,30 +9,33 @@
   tailwind.config = { darkMode: 'class', theme: { extend: { colors: { bg: '#0b0f17', panel: '#111827', card: '#141b2b', line: '#1f2937' } } } };
 </script>
 </head>
-<body class="bg-bg text-slate-200 min-h-screen font-sans p-4 md:p-6">
-<main class="max-w-6xl mx-auto">
+<body class="bg-bg text-slate-200 min-h-screen font-sans">
 
-  <header class="flex flex-wrap items-center justify-between gap-3 mb-5">
-    <div>
-      <h1 class="text-xl font-semibold text-white">Tech<span class="text-emerald-400">Drop</span> Painel Online</h1>
-      <p id="info" class="text-xs text-slate-500 mt-0.5">Carregando...</p>
-    </div>
-    <nav id="menu" class="flex items-center gap-4"></nav>
+<aside id="sidebar" class="hidden md:flex fixed inset-y-0 left-0 w-56 flex-col bg-panel border-r border-line"></aside>
+
+<main class="md:ml-56 p-4 md:p-6 pb-28">
+  <div id="navMobile" class="md:hidden flex flex-wrap gap-2 mb-4"></div>
+
+  <header class="mb-5">
+    <h1 class="text-xl font-semibold text-white flex items-center gap-2">Ofertas <span class="text-xs font-bold px-2 py-1 rounded bg-yellow-400 text-slate-900">Mercado Livre</span></h1>
+    <p id="info" class="text-xs text-slate-500 mt-0.5">Carregando...</p>
   </header>
 
-  <div id="abas" class="flex gap-2 mb-5"></div>
-  <div id="grid" class="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3"></div>
+  <div id="abas" class="flex flex-wrap gap-2 mb-5"></div>
+  <div id="grid" class="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4"></div>
+  <p id="vazio" class="hidden text-center text-slate-500 py-20">Nenhuma oferta para mostrar.</p>
 </main>
 
 <script src="/static/comum.js"></script>
 <script>
 let status = 'ativas';
+let listas = { ativas: [], descartadas: [] };
 
 function renderAbas() {
   const box = $('abas'); box.replaceChildren();
   [['ativas', 'Ativas'], ['descartadas', 'Descartadas']].forEach(([id, nome]) => {
-    const b = el('button', 'px-4 py-2 rounded-full text-sm border ' + (status === id ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-panel border-line text-slate-300'), nome);
-    b.onclick = () => { status = id; carregar(); };
+    const b = el('button', 'px-4 py-2 rounded-full text-sm border transition ' + (status === id ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-panel border-line text-slate-300 hover:border-slate-500'), nome + ' (' + listas[id].total + ')');
+    b.onclick = () => { status = id; mostrar(); };
     box.appendChild(b);
   });
 }
@@ -65,12 +68,22 @@ function card(o) {
   return c;
 }
 
-async function carregar() {
+function mostrar() {
   renderAbas();
+  const lista = listas[status].ofertas;
+  $('info').textContent = listas[status].total + ' oferta(s) ' + status;
+  $('grid').replaceChildren(...lista.map(card));
+  $('vazio').classList.toggle('hidden', lista.length > 0);
+}
+
+async function carregar() {
   try {
-    const j = await api('/api/ofertas?status=' + status);
-    $('info').textContent = j.total + ' oferta(s) ' + status;
-    $('grid').replaceChildren(...j.ofertas.map(card));
+    const [ativas, descartadas] = await Promise.all([
+      api('/api/ofertas?status=ativas&limite=1000'),
+      api('/api/ofertas?status=descartadas&limite=1000'),
+    ]);
+    listas = { ativas, descartadas };
+    mostrar();
   } catch (e) { $('info').textContent = e.message; }
 }
 
