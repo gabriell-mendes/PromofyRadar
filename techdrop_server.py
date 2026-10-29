@@ -377,6 +377,22 @@ def painel_status():
     return {"configurado": bool(url and token), "url": url or None}
 
 
+def _config_afiliado() -> tuple[str, str]:
+    """(matt_word, matt_tool) do link de afiliado do Mercado Livre. Não são segredo:
+    aparecem em qualquer link que o afiliado compartilhe, então podem ir ao navegador."""
+    arquivo = dotenv_values(ENV_FILE) if ENV_FILE.exists() else {}
+    matt_word = (os.environ.get("AFILIADO_ML_MATT_WORD") or arquivo.get("AFILIADO_ML_MATT_WORD") or "").strip()
+    matt_tool = (os.environ.get("AFILIADO_ML_MATT_TOOL") or arquivo.get("AFILIADO_ML_MATT_TOOL") or "").strip()
+    return matt_word, matt_tool
+
+
+@app.get("/api/afiliado/status")
+def afiliado_status():
+    """Diz se o link de afiliado está configurado e com quais valores."""
+    matt_word, matt_tool = _config_afiliado()
+    return {"configurado": bool(matt_word and matt_tool), "matt_word": matt_word or None, "matt_tool": matt_tool or None}
+
+
 @app.post("/api/painel/enviar", dependencies=[Depends(somente_painel)])
 def enviar_ao_painel(body: EnviarBody):
     """Manda ofertas ao painel online. Com `links`, só essas; sem, todas as ainda não enviadas.
