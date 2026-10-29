@@ -7,6 +7,7 @@ let diasDescarte = 7;            // quantos dias até apagar de vez (o servidor 
 let enviados = lerEnviados();    // { link: dataISO }  ("marcar como enviado": mensagem publicada à mão)
 let telegram = { configurado: false };  // envio ao Telegram (TELEGRAM_BOT_TOKEN e TELEGRAM_CHAT_ID no .env do servidor)
 let painel = { configurado: false, url: null };  // envio ao painel online (PAINEL_URL no .env do servidor)
+let afiliado = { configurado: false, matt_word: null, matt_tool: null };  // link de afiliado ML (AFILIADO_ML_MATT_WORD/TOOL no .env do servidor)
 const selecionados = new Set();  // links marcados
 const f = { status: 'todos', cat: 'todas', min: 0, minScore: 0, busca: '', ordem: 'score' };
 let previewKey = null;
@@ -249,12 +250,25 @@ function cardDescartado(o) {
 }
 
 /* ============ MENSAGEM (modelo simples, ajuste à vontade) ============ */
+/* Acrescenta matt_word/matt_tool ao link, se o .env do servidor tiver o afiliado configurado. */
+function linkComAfiliado(link) {
+  if (!afiliado.configurado) return link;
+  try {
+    const u = new URL(link);
+    u.searchParams.set('matt_word', afiliado.matt_word);
+    u.searchParams.set('matt_tool', afiliado.matt_tool);
+    return u.toString();
+  } catch {
+    return link;
+  }
+}
+
 function mensagem(o) {
   const linhas = [`OFERTA: ${o.title}`, ''];
   if (o.discount > 0) linhas.push(`De ${brl(o.old_price)} por ${brl(o.price)} (-${Math.round(o.discount)}%)`);
   else linhas.push(`Por ${brl(o.price)}`);
   if (o.installment && o.installment !== 'Consulte no site') linhas.push(o.installment);
-  linhas.push('', o.link);
+  linhas.push('', linkComAfiliado(o.link));
   return linhas.join('\n');
 }
 
@@ -372,6 +386,11 @@ async function carregarPainelStatus() {
   try { painel = await (await fetch('/api/painel/status')).json(); } catch { painel = { configurado: false, url: null }; }
 }
 
+async function carregarAfiliadoStatus() {
+  try { afiliado = await (await fetch('/api/afiliado/status')).json(); }
+  catch { afiliado = { configurado: false, matt_word: null, matt_tool: null }; }
+}
+
 function abrirPreview(link) {
   const o = ativos().find((x) => x.link === link);
   if (!o) return;
@@ -484,3 +503,4 @@ carregar();
 carregarDescartados();
 carregarPainelStatus();
 carregarTelegramStatus();
+carregarAfiliadoStatus();

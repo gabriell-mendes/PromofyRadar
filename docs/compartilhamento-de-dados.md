@@ -179,6 +179,27 @@ PAINEL_TOKEN=td_cole_aqui_o_seu_token
 
 Salve e feche. O `.env` é só seu: o Git o ignora, e ele **nunca** deve ser enviado nem compartilhado.
 
+### Link de afiliado na mensagem pronta (opcional)
+
+Se você tem conta no Programa de Afiliados do Mercado Livre, o painel local já pode colar o seu link de afiliado na mensagem pronta, sem precisar editar nada à mão.
+
+**1. Gere um link de teste.** No painel de afiliados (afiliados.mercadolivre.com.br), use o gerador de links em qualquer produto. Ele devolve algo como:
+
+```
+https://www.mercadolivre.com.br/social/js20261005141528953?matt_word=js20261005141528953&matt_tool=87606106&forceInApp=true&ref=...
+```
+
+Os valores que importam são os de `matt_word` e `matt_tool`.
+
+**2. Adicione duas linhas ao seu `.env`:**
+
+```
+AFILIADO_ML_MATT_WORD=js20261005141528953
+AFILIADO_ML_MATT_TOOL=87606106
+```
+
+**3. Reinicie o painel local.** A partir daí, toda mensagem pronta (preview, Telegram, copiar texto) usa o link do produto já com `matt_word` e `matt_tool` anexados. Sem essas duas linhas no `.env`, o link continua saindo normal, sem afiliado.
+
 ### Usar no dia a dia
 
 **1. Abra o painel local.** Dê dois cliques em `frontend\iniciar.bat` (ou rode `.\frontend\iniciar.bat` no PowerShell). Abre sozinho em http://localhost:5500. Deixe a janela preta aberta enquanto usa.
@@ -360,7 +381,7 @@ Depende do número de páginas. Com 1 a 3 páginas costuma levar poucos minutos.
 | Scraper (coletor) | Programa que visita as páginas da loja e lê título, preço e link das ofertas. Roda no seu PC |
 | Chromium / Playwright | O navegador e a ferramenta que o coletor usa para abrir as páginas |
 | venv (`.venv`) | Pasta com as dependências do projeto, separada do resto do seu PC |
-| `.env` | Arquivo local com configurações e segredos (`PAINEL_URL`, `PAINEL_TOKEN`). Não vai para o git |
+| `.env` | Arquivo local com configurações e segredos (`PAINEL_URL`, `PAINEL_TOKEN`, `AFILIADO_ML_MATT_WORD`, `AFILIADO_ML_MATT_TOOL`). Não vai para o git |
 | Descartada | Oferta marcada como não aproveitável no painel online. Vale para todos os admins e não volta se for reenviada |
 | Histórico de preços | Uma linha por envio (preço, data, quem enviou), usada para ver como o preço mudou |
 | Token de API | Senha longa usada pelo PC para se identificar ao enviar ofertas. Não abre o painel |

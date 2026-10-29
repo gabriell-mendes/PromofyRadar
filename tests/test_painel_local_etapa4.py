@@ -102,6 +102,37 @@ def test_le_o_env_sem_copiar_o_token_para_o_ambiente(local, tmp_path):
     assert "PAINEL_TOKEN" not in os.environ  # senão iria junto para o processo do scraper
 
 
+# ---------- link de afiliado ----------
+def test_afiliado_sem_configuracao(local):
+    assert local.get("/api/afiliado/status").json() == {"configurado": False, "matt_word": None, "matt_tool": None}
+
+
+def test_afiliado_configurado_pelo_env(local, monkeypatch):
+    monkeypatch.setenv("AFILIADO_ML_MATT_WORD", "js20261005141528953")
+    monkeypatch.setenv("AFILIADO_ML_MATT_TOOL", "87606106")
+    assert local.get("/api/afiliado/status").json() == {
+        "configurado": True,
+        "matt_word": "js20261005141528953",
+        "matt_tool": "87606106",
+    }
+
+
+def test_afiliado_configurado_pelo_arquivo_env(local, tmp_path):
+    (tmp_path / ".env").write_text(
+        "AFILIADO_ML_MATT_WORD=js20261005141528953\nAFILIADO_ML_MATT_TOOL=87606106\n", encoding="utf-8"
+    )
+    assert local.get("/api/afiliado/status").json() == {
+        "configurado": True,
+        "matt_word": "js20261005141528953",
+        "matt_tool": "87606106",
+    }
+
+
+def test_afiliado_incompleto_nao_conta_como_configurado(local, monkeypatch):
+    monkeypatch.setenv("AFILIADO_ML_MATT_WORD", "js20261005141528953")
+    assert local.get("/api/afiliado/status").json()["configurado"] is False
+
+
 def test_enviar_sem_configurar_explica_o_que_fazer(local):
     gravar([oferta(1)])
     r = local.post("/api/painel/enviar", json={})
