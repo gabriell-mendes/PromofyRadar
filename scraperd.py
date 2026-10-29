@@ -43,7 +43,7 @@ class SmartOfferScraper:
         # de comparação do Deal Score e alimentam o histórico de preços
         self.todos_vistos: List[Dict] = []
 
-    async def _human_delay(self, min_s: float = 1.0, max_s: float = 3.0):
+    async def _human_delay(self, min_s: float = 2.0, max_s: float = 6.0):
         await asyncio.sleep(random.uniform(min_s, max_s))
 
     def _clean_price_value(self, text: str) -> float:
@@ -116,7 +116,7 @@ class SmartOfferScraper:
                     await item.scroll_into_view_if_needed(timeout=2000)
                 except Exception:
                     pass
-                await self._human_delay(0.3, 0.6)
+                await self._human_delay(0.6, 1.2)
         return ""
 
     async def _dump_debug_html(self, page: Page, tag: str):
@@ -221,7 +221,7 @@ class SmartOfferScraper:
                         f"[SKIP] {title[:30]}... ({actual_discount:.1f}% off < mínimo)"
                     )
 
-                await self._human_delay(0.2, 0.5)
+                await self._human_delay(0.4, 1.0)
 
             except Exception as e:
                 logger.error(f"Erro no item {i + 1}: {e}")
@@ -286,9 +286,9 @@ class SmartOfferScraper:
 
                     # Scroll gradual pra carregar lazy-load de imagens/preços
                     await page.evaluate("window.scrollTo(0, document.body.scrollHeight / 2)")
-                    await self._human_delay(1, 2)
+                    await self._human_delay(2, 4)
                     await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-                    await self._human_delay(2, 3)
+                    await self._human_delay(4, 6)
 
                     page_results = await self._extract_items_on_page(page)
                     if not page_results and not await page.query_selector(
@@ -298,7 +298,7 @@ class SmartOfferScraper:
                         break
 
                     all_results.extend(page_results)
-                    await self._human_delay(1.5, 3)
+                    await self._human_delay(3, 6)
 
                 self._pontuar(all_results)
 
