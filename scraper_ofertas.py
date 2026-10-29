@@ -103,7 +103,7 @@ class OfertasTabScraper(SmartOfferScraper):
             await botao.scroll_into_view_if_needed(timeout=5000)
             await botao.click(timeout=10000)
             await page.wait_for_load_state("domcontentloaded")
-            await self._human_delay(2, 3)
+            await self._human_delay(4, 6)
             return True
         except Exception:
             logger.error(
@@ -166,13 +166,13 @@ class OfertasTabScraper(SmartOfferScraper):
 
                     # scroll gradual para carregar imagens/preços lazy-load
                     await page.evaluate("window.scrollTo(0, document.body.scrollHeight / 2)")
-                    await self._human_delay(1, 2)
+                    await self._human_delay(2, 4)
                     await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-                    await self._human_delay(2, 3)
+                    await self._human_delay(4, 6)
 
                     # _extract_items_on_page já aplica desconto mínimo e dedupe
                     all_results.extend(await self._extract_items_on_page(page))
-                    await self._human_delay(1.5, 3)
+                    await self._human_delay(3, 6)
 
                 self._pontuar(all_results)
 
